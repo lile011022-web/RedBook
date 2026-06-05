@@ -686,7 +686,10 @@ function App() {
             <button
               className={item === activePage ? "nav-item active" : "nav-item"}
               key={item}
-              onClick={() => setActivePage(item)}
+              onClick={() => {
+                setError("");
+                setActivePage(item);
+              }}
               type="button"
             >
               {item}
@@ -735,7 +738,7 @@ function App() {
             onCreate={() =>
               runMutation(async () => {
                 await apiRequest<Account>("/accounts", {
-                  body: JSON.stringify({ display_name: accountName }),
+                  body: JSON.stringify({ display_name: accountName.trim() }),
                   method: "POST"
                 });
                 setAccountName("");
@@ -1086,8 +1089,13 @@ function AccountsPage({
         >
           <label>
             账号名称
-            <input value={accountName} onChange={(event) => onAccountNameChange(event.target.value)} />
+            <input
+              value={accountName}
+              onChange={(event) => onAccountNameChange(event.target.value)}
+              placeholder="例如：合肥招主播兼职"
+            />
           </label>
+          {!accountName.trim() ? <p className="form-hint">先输入账号名称，按钮才会启用。</p> : null}
           <button className="primary-button" disabled={isBusy || !accountName.trim()} type="submit">
             添加账号
           </button>

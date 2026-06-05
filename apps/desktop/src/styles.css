@@ -332,6 +332,12 @@ a {
   font-weight: 700;
 }
 
+.form-hint {
+  margin: -2px 0 0;
+  color: #86868b;
+  font-size: 13px;
+}
+
 .primary-button,
 .secondary-button,
 .quiet-button {
