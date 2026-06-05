@@ -1,0 +1,44 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://redbook:redbook@postgres:5432/redbook
+      JWT_SECRET: change-me-in-production
+      OPENAI_API_KEY: ""
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: redbook-media
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - minio
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: redbook
+      POSTGRES_USER: redbook
+      POSTGRES_PASSWORD: redbook
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  postgres-data:
+  minio-data:
