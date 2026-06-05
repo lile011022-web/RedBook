@@ -56,10 +56,11 @@ async function readError(response: Response) {
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${getApiBaseUrl()}${normalizedPath}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     }

@@ -29,6 +29,7 @@ venv/
 *.sqlite3
 storage/
 uploads/
+apps/api/data/
 
 .DS_Store
 Thumbs.db

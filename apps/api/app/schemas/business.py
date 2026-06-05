@@ -88,6 +88,7 @@ class MediaAssetCreate(BaseModel):
     content_type: str = "application/octet-stream"
     preview_url: str | None = None
     sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    source: str = "external"
 
 
 class MediaAssetResponse(BaseModel):
@@ -99,7 +100,27 @@ class MediaAssetResponse(BaseModel):
     preview_url: str | None
     sha256: str | None
     reused_from_asset_id: str | None
+    source: str
+    file_size: int
+    width: int | None
+    height: int | None
     created_at: datetime
+
+
+class AiMediaGenerateImageRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=1000)
+    style: str = Field(default="", max_length=500)
+
+
+class AiMediaIdeaRequest(BaseModel):
+    goal: str = Field(min_length=1, max_length=1000)
+
+
+class AiMediaIdeaResponse(BaseModel):
+    cover_concepts: list[str]
+    shooting_script: list[str]
+    video_storyboard: list[str]
+    asset_checklist: list[str]
 
 
 class PublishLogCreate(BaseModel):

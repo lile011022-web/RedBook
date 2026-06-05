@@ -2,9 +2,12 @@ from app.services.openai_writer import (
     build_dashboard_analysis_prompt,
     build_draft_options_prompt,
     build_draft_prompt,
+    build_image_generation_prompt,
+    build_media_ideas_prompt,
     parse_dashboard_analysis,
     parse_draft_content,
     parse_draft_options,
+    parse_media_ideas,
 )
 
 
@@ -152,3 +155,41 @@ def test_build_dashboard_analysis_prompt_uses_manual_data_boundary():
     assert "do not ask to automate" in prompt
     assert "51" in prompt
     assert "近7日" in prompt
+
+
+def test_parse_media_ideas_reads_structured_json_text():
+    ideas = parse_media_ideas(
+        """
+        {
+          "cover_concepts": ["封面一"],
+          "shooting_script": ["镜头一"],
+          "video_storyboard": ["分镜一"],
+          "asset_checklist": ["图片素材"]
+        }
+        """
+    )
+
+    assert ideas.cover_concepts == ["封面一"]
+    assert ideas.shooting_script == ["镜头一"]
+    assert ideas.video_storyboard == ["分镜一"]
+    assert ideas.asset_checklist == ["图片素材"]
+
+
+def test_build_media_prompts_include_persona_and_boundaries():
+    class PersonaStub:
+        positioning = "合肥本地生活博主"
+        content_direction = "直播预告"
+        tone = "真诚"
+        disabled_words = ["保证"]
+
+    ideas_prompt = build_media_ideas_prompt(persona=PersonaStub(), goal="周末直播预热")
+    image_prompt = build_image_generation_prompt(
+        persona=PersonaStub(),
+        prompt="主播招聘封面",
+        style="真实手机摄影",
+    )
+
+    assert "合肥本地生活博主" in ideas_prompt
+    assert "不要包含自动发布" in ideas_prompt
+    assert "主播招聘封面" in image_prompt
+    assert "真实手机摄影" in image_prompt

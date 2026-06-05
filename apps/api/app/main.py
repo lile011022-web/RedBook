@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from app import models as models  # noqa: F401
 from app.api import (
@@ -21,6 +22,27 @@ from app.db.base import Base
 from app.db.session import engine
 
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_lightweight_schema_updates() -> None:
+    inspector = inspect(engine)
+    if "media_assets" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("media_assets")}
+    column_sql = {
+        "source": "ALTER TABLE media_assets ADD COLUMN source VARCHAR(32) DEFAULT 'upload'",
+        "file_size": "ALTER TABLE media_assets ADD COLUMN file_size INTEGER DEFAULT 0",
+        "width": "ALTER TABLE media_assets ADD COLUMN width INTEGER",
+        "height": "ALTER TABLE media_assets ADD COLUMN height INTEGER",
+    }
+    with engine.begin() as connection:
+        for column_name, statement in column_sql.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
+
+ensure_lightweight_schema_updates()
 
 app = FastAPI(title="RedBook API", version="0.1.0")
 

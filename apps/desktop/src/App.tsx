@@ -70,7 +70,18 @@ type MediaAsset = {
   preview_url: string | null;
   sha256: string | null;
   reused_from_asset_id: string | null;
+  source: string;
+  file_size: number;
+  width: number | null;
+  height: number | null;
   created_at: string;
+};
+
+type AiMediaIdeas = {
+  cover_concepts: string[];
+  shooting_script: string[];
+  video_storyboard: string[];
+  asset_checklist: string[];
 };
 
 type PublishLog = {
@@ -201,6 +212,7 @@ const navItems = [
   "仪表盘",
   "账号",
   "人设",
+  "素材",
   "草稿",
   "排期",
   "合规",
@@ -217,8 +229,10 @@ const REMEMBERED_PASSWORD_KEY = "redbook.rememberedPassword";
 const statusLabels: Record<string, string> = {
   active: "启用",
   approved: "已通过",
+  ai_image: "AI 图片",
   blocked: "已阻止",
   draft: "草稿",
+  external: "外链",
   failed: "失败",
   manual: "人工",
   needs_review: "待审核",
@@ -226,6 +240,7 @@ const statusLabels: Record<string, string> = {
   rejected: "已拒绝",
   reviewed: "已审核",
   scheduled: "已排期",
+  upload: "本地上传",
   warning: "提醒"
 };
 
@@ -444,11 +459,12 @@ function App() {
     scheduled_at: ""
   });
   const [mediaForm, setMediaForm] = useState({
-    filename: "",
-    content_type: "image/png",
-    preview_url: "",
-    sha256: ""
+    ai_prompt: "",
+    ai_style: "",
+    idea_goal: ""
   });
+  const [selectedMediaFile, setSelectedMediaFile] = useState<File | null>(null);
+  const [mediaIdeas, setMediaIdeas] = useState<AiMediaIdeas | null>(null);
   const [publishForm, setPublishForm] = useState({
     draft_id: "",
     published_at: "",
@@ -792,24 +808,54 @@ function App() {
           <MediaPage
             accounts={accounts}
             form={mediaForm}
+            apiBaseUrl={apiBaseUrl}
             isBusy={isBusy}
+            mediaIdeas={mediaIdeas}
             mediaAssets={mediaAssets}
+            selectedFile={selectedMediaFile}
             selectedAccountId={selectedAccountId}
             onChange={setMediaForm}
-            onSelect={setSelectedAccountId}
-            onSubmit={() =>
+            onFileChange={setSelectedMediaFile}
+            onGenerateIdeas={() =>
               runMutation(async () => {
-                await apiRequest<MediaAsset>("/media-assets", {
+                if (!selectedAccountId) {
+                  throw new Error("请先选择账号再生成素材创意。");
+                }
+                const ideas = await apiRequest<AiMediaIdeas>(`/accounts/${selectedAccountId}/media-ideas`, {
+                  body: JSON.stringify({ goal: mediaForm.idea_goal || "根据当前账号人设生成素材创意" }),
+                  method: "POST"
+                });
+                setMediaIdeas(ideas);
+              })
+            }
+            onGenerateImage={() =>
+              runMutation(async () => {
+                if (!selectedAccountId) {
+                  throw new Error("请先选择账号再生成 AI 图片。");
+                }
+                await apiRequest<MediaAsset>(`/accounts/${selectedAccountId}/media-assets/generate-image`, {
                   body: JSON.stringify({
-                    account_id: selectedAccountId,
-                    filename: mediaForm.filename,
-                    content_type: mediaForm.content_type,
-                    preview_url: mediaForm.preview_url || null,
-                    sha256: mediaForm.sha256 || null
+                    prompt: mediaForm.ai_prompt || "根据当前账号人设生成小红书封面素材",
+                    style: mediaForm.ai_style
                   }),
                   method: "POST"
                 });
-                setMediaForm({ filename: "", content_type: "image/png", preview_url: "", sha256: "" });
+                setMediaForm((current) => ({ ...current, ai_prompt: "", ai_style: "" }));
+              })
+            }
+            onSelect={setSelectedAccountId}
+            onUpload={() =>
+              runMutation(async () => {
+                if (!selectedAccountId || !selectedMediaFile) {
+                  throw new Error("请先选择账号和本地文件。");
+                }
+                const body = new FormData();
+                body.append("file", selectedMediaFile);
+                await apiRequest<MediaAsset>(`/accounts/${selectedAccountId}/media-assets/upload`, {
+                  body,
+                  method: "POST"
+                });
+                setSelectedMediaFile(null);
               })
             }
           />
@@ -837,38 +883,17 @@ function App() {
               })
             }
             onSelect={setSelectedAccountId}
-            onSubmitManual={() =>
-              runMutation(async () => {
-                await apiRequest<Draft>("/drafts", {
-                  body: JSON.stringify({
-                    account_id: selectedAccountId,
-                    title: draftForm.title,
-                    body: draftForm.body,
-                    tags: tagList(draftForm.tags),
-                    cover_text: draftForm.cover_text,
-                    source: "manual"
-                  }),
-                  method: "POST"
-                });
-                setDraftForm((current) => ({
-                  ...emptyDraftForm,
-                  count: current.count,
-                  extra_requirements: current.extra_requirements
-                }));
-              })
-            }
             onSubmitAi={() =>
               runMutation(async () => {
                 await apiRequest<Draft[]>("/ai/generate-draft-options", {
                   body: JSON.stringify({
                     account_id: selectedAccountId,
-                    topic: draftForm.topic,
+                    topic: draftForm.extra_requirements.trim() || "基于当前账号人设生成小红书文案",
                     count: Number(draftForm.count),
                     extra_requirements: draftForm.extra_requirements
                   }),
                   method: "POST"
                 });
-                setDraftForm((current) => ({ ...current, topic: "" }));
               })
             }
           />
@@ -1241,87 +1266,160 @@ function PersonasPage({
 }
 
 function MediaPage({
+  apiBaseUrl,
   accounts,
   form,
   isBusy,
+  mediaIdeas,
   mediaAssets,
+  selectedFile,
   selectedAccountId,
   onChange,
+  onFileChange,
+  onGenerateIdeas,
+  onGenerateImage,
   onSelect,
-  onSubmit
+  onUpload
 }: {
+  apiBaseUrl: string;
   accounts: Account[];
-  form: { filename: string; content_type: string; preview_url: string; sha256: string };
+  form: { ai_prompt: string; ai_style: string; idea_goal: string };
   isBusy: boolean;
+  mediaIdeas: AiMediaIdeas | null;
   mediaAssets: MediaAsset[];
+  selectedFile: File | null;
   selectedAccountId: string;
-  onChange: (value: { filename: string; content_type: string; preview_url: string; sha256: string }) => void;
+  onChange: (value: { ai_prompt: string; ai_style: string; idea_goal: string }) => void;
+  onFileChange: (value: File | null) => void;
+  onGenerateIdeas: () => void;
+  onGenerateImage: () => void;
   onSelect: (value: string) => void;
-  onSubmit: () => void;
+  onUpload: () => void;
 }) {
+  function mediaPreviewUrl(asset: MediaAsset) {
+    if (!asset.preview_url) {
+      return "";
+    }
+    if (asset.preview_url.startsWith("http")) {
+      return asset.preview_url;
+    }
+    return `${apiBaseUrl}${asset.preview_url}`;
+  }
+
   return (
     <section className="page-grid">
-      <Panel title="添加素材记录">
+      <Panel title="账号素材库">
+        <div className="form-grid">
+          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
+          <p className="form-hint">
+            素材按账号隔离。当前页面只显示所选账号的素材，其他账号不可见。
+          </p>
+        </div>
+      </Panel>
+      <Panel title="本地上传">
         <form
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            onSubmit();
+            onUpload();
           }}
         >
-          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
           <label>
-            文件名
+            选择图片、视频或文件
             <input
-              value={form.filename}
-              onChange={(event) => onChange({ ...form, filename: event.target.value })}
-              placeholder="cover.png"
+              accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx"
+              onChange={(event) => onFileChange(event.target.files?.[0] || null)}
+              type="file"
             />
           </label>
-          <label>
-            内容类型
-            <input
-              value={form.content_type}
-              onChange={(event) => onChange({ ...form, content_type: event.target.value })}
-              placeholder="image/png"
-            />
-          </label>
-          <label>
-            预览图地址
-            <input
-              value={form.preview_url}
-              onChange={(event) => onChange({ ...form, preview_url: event.target.value })}
-              placeholder="https://example.com/cover.png"
-            />
-          </label>
-          <label>
-            SHA256
-            <input
-              value={form.sha256}
-              onChange={(event) => onChange({ ...form, sha256: event.target.value })}
-              placeholder="可选，64 位校验值"
-            />
-          </label>
-          <button className="primary-button" disabled={isBusy || !selectedAccountId || !form.filename} type="submit">
-            保存素材
+          {selectedFile ? (
+            <p className="form-hint">
+              已选择：{selectedFile.name} / {(selectedFile.size / 1024).toFixed(1)} KB
+            </p>
+          ) : null}
+          <button className="primary-button" disabled={isBusy || !selectedAccountId || !selectedFile} type="submit">
+            {isBusy ? "正在上传..." : "上传到当前账号素材库"}
           </button>
         </form>
       </Panel>
-      <Panel title="素材库">
+      <Panel title="AI 生成图片">
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onGenerateImage();
+          }}
+        >
+          <label>
+            图片主题
+            <input
+              value={form.ai_prompt}
+              onChange={(event) => onChange({ ...form, ai_prompt: event.target.value })}
+              placeholder="例如：合肥直播招聘封面，真实手机摄影风"
+            />
+          </label>
+          <label>
+            风格要求
+            <input
+              value={form.ai_style}
+              onChange={(event) => onChange({ ...form, ai_style: event.target.value })}
+              placeholder="干净、真实、亮色背景"
+            />
+          </label>
+          <button className="secondary-button" disabled={isBusy || !selectedAccountId} type="submit">
+            生成图片并保存
+          </button>
+        </form>
+      </Panel>
+      <Panel title="AI 素材创意">
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onGenerateIdeas();
+          }}
+        >
+          <label>
+            素材目标
+            <textarea
+              value={form.idea_goal}
+              onChange={(event) => onChange({ ...form, idea_goal: event.target.value })}
+              placeholder="例如：给直播招聘账号设计 3 条短视频素材方案"
+            />
+          </label>
+          <button className="secondary-button" disabled={isBusy || !selectedAccountId} type="submit">
+            生成素材创意
+          </button>
+        </form>
+        {mediaIdeas ? (
+          <div className="idea-grid">
+            <InsightList title="封面画面" items={mediaIdeas.cover_concepts} />
+            <InsightList title="拍摄脚本" items={mediaIdeas.shooting_script} />
+            <InsightList title="视频分镜" items={mediaIdeas.video_storyboard} />
+            <InsightList title="素材清单" items={mediaIdeas.asset_checklist} />
+          </div>
+        ) : null}
+      </Panel>
+      <Panel title="当前账号素材库">
         <div className="media-grid">
           {mediaAssets.length ? (
             mediaAssets.map((asset) => (
               <article className="media-card" key={asset.id}>
                 <div className="media-preview">
                   {asset.content_type.startsWith("image/") && asset.preview_url ? (
-                    <img alt={asset.filename} src={asset.preview_url} />
+                    <img alt={asset.filename} src={mediaPreviewUrl(asset)} />
+                  ) : asset.content_type.startsWith("video/") && asset.preview_url ? (
+                    <video controls src={mediaPreviewUrl(asset)} />
                   ) : (
                     <span>{asset.content_type}</span>
                   )}
                 </div>
                 <div>
                   <h3>{asset.filename}</h3>
-                  <p>{asset.storage_key}</p>
+                  <p>
+                    {asset.source === "ai_image" ? "AI 生成" : asset.source === "upload" ? "本地上传" : "外链记录"} /{" "}
+                    {((asset.file_size || 0) / 1024).toFixed(1)} KB
+                  </p>
                   {asset.reused_from_asset_id ? (
                     <span className="badge amber">复用提醒</span>
                   ) : (
@@ -1350,8 +1448,7 @@ function DraftsPage({
   onOpenCreator,
   onReview,
   onSelect,
-  onSubmitAi,
-  onSubmitManual
+  onSubmitAi
 }: {
   accounts: Account[];
   drafts: Draft[];
@@ -1364,47 +1461,10 @@ function DraftsPage({
   onReview: (draftId: string, reviewStatus: string) => void;
   onSelect: (value: string) => void;
   onSubmitAi: () => void;
-  onSubmitManual: () => void;
 }) {
   return (
     <section className="page-grid">
-      <Panel title="创建草稿">
-        <form
-          className="form-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSubmitManual();
-          }}
-        >
-          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
-          <label>
-            标题
-            <input value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} />
-          </label>
-          <label>
-            正文
-            <textarea value={form.body} onChange={(event) => onChange({ ...form, body: event.target.value })} />
-          </label>
-          <label>
-            标签
-            <input
-              value={form.tags}
-              onChange={(event) => onChange({ ...form, tags: event.target.value })}
-              placeholder="护肤, 夏季"
-            />
-          </label>
-          <label>
-            封面文案
-            <input
-              value={form.cover_text}
-              onChange={(event) => onChange({ ...form, cover_text: event.target.value })}
-            />
-          </label>
-          <button className="primary-button" disabled={isBusy || !selectedAccountId || !form.title} type="submit">
-            保存手动草稿
-          </button>
-        </form>
-        <div className="divider" />
+      <Panel title="一键生成文案">
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -1413,14 +1473,6 @@ function DraftsPage({
           }}
         >
           <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
-          <label>
-            GPT 主题
-            <input
-              value={form.topic}
-              onChange={(event) => onChange({ ...form, topic: event.target.value })}
-              placeholder="例如：合肥直播预告、夏季护肤清单"
-            />
-          </label>
           <label>
             生成数量
             <select value={form.count} onChange={(event) => onChange({ ...form, count: event.target.value })}>
@@ -1432,15 +1484,15 @@ function DraftsPage({
             </select>
           </label>
           <label>
-            额外要求
+            补充要求（可选）
             <textarea
               value={form.extra_requirements}
               onChange={(event) => onChange({ ...form, extra_requirements: event.target.value })}
-              placeholder="例如：一版偏转化，一版偏种草；标题更口语化"
+              placeholder="不填也可以直接按当前账号人设生成。也可以写：更口语化、偏转化、直播预告方向。"
             />
           </label>
-          <button className="secondary-button" disabled={isBusy || !selectedAccountId || !form.topic} type="submit">
-            生成 GPT 文案
+          <button className="primary-button" disabled={isBusy || !selectedAccountId} type="submit">
+            {isBusy ? "正在生成..." : "生成文案"}
           </button>
         </form>
       </Panel>

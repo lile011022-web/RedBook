@@ -1,4 +1,5 @@
 import json
+import base64
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -25,6 +26,14 @@ class DashboardAnalysis:
     recommendations: list[str]
     next_actions: list[str]
     content_angles: list[str]
+
+
+@dataclass(frozen=True)
+class MediaIdeas:
+    cover_concepts: list[str]
+    shooting_script: list[str]
+    video_storyboard: list[str]
+    asset_checklist: list[str]
 
 
 def build_draft_prompt(
@@ -137,6 +146,37 @@ def build_dashboard_analysis_prompt(*, persona: object, records: list[object], r
     )
 
 
+def build_media_ideas_prompt(*, persona: object, goal: str) -> str:
+    payload = {
+        "persona": {
+            "positioning": getattr(persona, "positioning", ""),
+            "content_direction": getattr(persona, "content_direction", ""),
+            "tone": getattr(persona, "tone", ""),
+            "disabled_words": getattr(persona, "disabled_words", []),
+        },
+        "goal": goal,
+    }
+    return (
+        "你是小红书人工运营的素材策划助手。根据账号人设和目标，生成可人工拍摄或设计的素材方案。"
+        "不要包含自动发布、自动登录、抓取、群控或规避平台规则的建议。\n"
+        f"输入 JSON: {json.dumps(payload, ensure_ascii=False)}\n"
+        "只返回 JSON，字段为 cover_concepts、shooting_script、video_storyboard、asset_checklist，"
+        "每个字段都是中文字符串数组。"
+    )
+
+
+def build_image_generation_prompt(*, persona: object, prompt: str, style: str = "") -> str:
+    return (
+        "为小红书人工运营生成一张可作为素材库候选图的图片。"
+        f"账号定位：{getattr(persona, 'positioning', '')}。"
+        f"内容方向：{getattr(persona, 'content_direction', '')}。"
+        f"语气风格：{getattr(persona, 'tone', '')}。"
+        f"图片主题：{prompt}。"
+        f"风格要求：{style or '干净、真实、适合社媒封面'}。"
+        "避免夸大医疗、功效保证、平台自动化相关元素。"
+    )
+
+
 def parse_draft_content(raw_text: str) -> DraftContent:
     payload = json.loads(raw_text)
     tags = payload.get("tags", [])
@@ -190,6 +230,16 @@ def parse_dashboard_analysis(raw_text: str) -> DashboardAnalysis:
     )
 
 
+def parse_media_ideas(raw_text: str) -> MediaIdeas:
+    payload = json.loads(raw_text)
+    return MediaIdeas(
+        cover_concepts=_string_list(payload.get("cover_concepts", [])),
+        shooting_script=_string_list(payload.get("shooting_script", [])),
+        video_storyboard=_string_list(payload.get("video_storyboard", [])),
+        asset_checklist=_string_list(payload.get("asset_checklist", [])),
+    )
+
+
 def resolve_openai_api_key(db: Session) -> str | None:
     settings = get_settings()
     if settings.openai_api_key:
@@ -239,3 +289,31 @@ async def generate_dashboard_analysis(
     client = AsyncOpenAI(api_key=api_key)
     response = await client.responses.create(model=model, input=prompt)
     return parse_dashboard_analysis(response.output_text)
+
+
+async def generate_media_ideas(
+    *,
+    api_key: str,
+    prompt: str,
+    model: str = DEFAULT_OPENAI_MODEL,
+) -> MediaIdeas:
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.responses.create(model=model, input=prompt)
+    return parse_media_ideas(response.output_text)
+
+
+async def generate_image_bytes(
+    *,
+    api_key: str,
+    prompt: str,
+    model: str = "gpt-image-1",
+) -> bytes:
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.images.generate(model=model, prompt=prompt, size="1024x1024")
+    if not response.data or not response.data[0].b64_json:
+        raise ValueError("OpenAI returned no image data.")
+    return base64.b64decode(response.data[0].b64_json)
