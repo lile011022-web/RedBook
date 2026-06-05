@@ -1,5 +1,6 @@
 from app.models.account import Account
 from app.models.analytics_record import AnalyticsRecord
+from app.models.dashboard_record import DashboardRecord
 from app.models.draft import Draft
 from app.models.media_asset import MediaAsset
 from app.models.persona import Persona
@@ -12,6 +13,7 @@ from app.models.user import User
 __all__ = [
     "Account",
     "AnalyticsRecord",
+    "DashboardRecord",
     "Draft",
     "MediaAsset",
     "Persona",

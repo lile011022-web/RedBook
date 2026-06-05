@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -156,3 +156,54 @@ class SettingResponse(BaseModel):
 class AiDraftGenerateRequest(BaseModel):
     account_id: str
     topic: str = Field(min_length=1, max_length=255)
+
+
+class AiDraftOptionsRequest(AiDraftGenerateRequest):
+    count: int = Field(default=3, ge=1, le=5)
+    extra_requirements: str = Field(default="", max_length=1000)
+
+
+class DashboardRecordCreate(BaseModel):
+    account_id: str
+    period_label: str = Field(default="近7日", max_length=32)
+    period_start: date
+    period_end: date
+    exposure_count: int = Field(default=0, ge=0)
+    view_count: int = Field(default=0, ge=0)
+    like_count: int = Field(default=0, ge=0)
+    comment_count: int = Field(default=0, ge=0)
+    net_follower_count: int = 0
+    new_follow_count: int = Field(default=0, ge=0)
+    cover_click_rate: float = Field(default=0.0, ge=0)
+    video_completion_rate: float = Field(default=0.0, ge=0)
+    favorite_count: int = Field(default=0, ge=0)
+    share_count: int = Field(default=0, ge=0)
+    unfollow_count: int = Field(default=0, ge=0)
+    profile_visit_count: int = Field(default=0, ge=0)
+    exposure_change: str = Field(default="", max_length=32)
+    view_change: str = Field(default="", max_length=32)
+    like_change: str = Field(default="", max_length=32)
+    comment_change: str = Field(default="", max_length=32)
+    follower_change: str = Field(default="", max_length=32)
+    cover_click_change: str = Field(default="", max_length=32)
+    video_completion_change: str = Field(default="", max_length=32)
+    profile_visit_change: str = Field(default="", max_length=32)
+    notes: str = Field(default="", max_length=1000)
+
+
+class DashboardRecordResponse(DashboardRecordCreate):
+    id: str
+    created_at: datetime
+
+
+class AiDashboardAnalysisRequest(BaseModel):
+    account_id: str
+    dashboard_record_id: str | None = None
+
+
+class AiDashboardAnalysisResponse(BaseModel):
+    summary: str
+    diagnosis: list[str]
+    recommendations: list[str]
+    next_actions: list[str]
+    content_angles: list[str]

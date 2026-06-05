@@ -320,6 +320,10 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.form-grid .full-span {
+  grid-column: 1 / -1;
+}
+
 .form-grid label {
   display: grid;
   gap: 7px;
@@ -451,6 +455,27 @@ a {
 
 .record-card.compact {
   align-items: center;
+}
+
+.record-card.analysis-card {
+  display: block;
+}
+
+.insight-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.insight-list strong {
+  color: #1d1d1f;
+}
+
+.insight-list ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #424245;
+  line-height: 1.6;
 }
 
 .record-actions {

@@ -94,6 +94,44 @@ type AnalyticsRecord = {
   created_at: string;
 };
 
+type DashboardRecord = {
+  id: string;
+  account_id: string;
+  period_label: string;
+  period_start: string;
+  period_end: string;
+  exposure_count: number;
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  net_follower_count: number;
+  new_follow_count: number;
+  cover_click_rate: number;
+  video_completion_rate: number;
+  favorite_count: number;
+  share_count: number;
+  unfollow_count: number;
+  profile_visit_count: number;
+  exposure_change: string;
+  view_change: string;
+  like_change: string;
+  comment_change: string;
+  follower_change: string;
+  cover_click_change: string;
+  video_completion_change: string;
+  profile_visit_change: string;
+  notes: string;
+  created_at: string;
+};
+
+type AiDashboardAnalysis = {
+  summary: string;
+  diagnosis: string[];
+  recommendations: string[];
+  next_actions: string[];
+  content_angles: string[];
+};
+
 type RiskLog = {
   id: string;
   account_id: string | null;
@@ -113,15 +151,60 @@ type PersonaForm = {
   publish_frequency: string;
 };
 
+type DraftForm = {
+  title: string;
+  body: string;
+  tags: string;
+  cover_text: string;
+  topic: string;
+  count: string;
+  extra_requirements: string;
+};
+
+type AnalyticsForm = {
+  publish_log_id: string;
+  views: string;
+  likes: string;
+  favorites: string;
+  comments: string;
+  recorded_at: string;
+};
+
+type DashboardForm = {
+  period_label: string;
+  period_start: string;
+  period_end: string;
+  exposure_count: string;
+  view_count: string;
+  like_count: string;
+  comment_count: string;
+  net_follower_count: string;
+  new_follow_count: string;
+  cover_click_rate: string;
+  video_completion_rate: string;
+  favorite_count: string;
+  share_count: string;
+  unfollow_count: string;
+  profile_visit_count: string;
+  exposure_change: string;
+  view_change: string;
+  like_change: string;
+  comment_change: string;
+  follower_change: string;
+  cover_click_change: string;
+  video_completion_change: string;
+  profile_visit_change: string;
+  notes: string;
+};
+
 const navItems = [
   "仪表盘",
   "账号",
   "人设",
-  "素材",
   "草稿",
   "排期",
   "合规",
-  "发布记录",
+  "运营分析",
   "设置"
 ];
 
@@ -149,6 +232,52 @@ const emptyPersonaForm: PersonaForm = {
   tone: "",
   disabled_words: "",
   publish_frequency: ""
+};
+
+const emptyDraftForm: DraftForm = {
+  title: "",
+  body: "",
+  tags: "",
+  cover_text: "",
+  topic: "",
+  count: "3",
+  extra_requirements: ""
+};
+
+const emptyAnalyticsForm: AnalyticsForm = {
+  publish_log_id: "",
+  views: "0",
+  likes: "0",
+  favorites: "0",
+  comments: "0",
+  recorded_at: ""
+};
+
+const emptyDashboardForm: DashboardForm = {
+  period_label: "近7日",
+  period_start: "",
+  period_end: "",
+  exposure_count: "0",
+  view_count: "0",
+  like_count: "0",
+  comment_count: "0",
+  net_follower_count: "0",
+  new_follow_count: "0",
+  cover_click_rate: "0",
+  video_completion_rate: "0",
+  favorite_count: "0",
+  share_count: "0",
+  unfollow_count: "0",
+  profile_visit_count: "0",
+  exposure_change: "",
+  view_change: "",
+  like_change: "",
+  comment_change: "",
+  follower_change: "",
+  cover_click_change: "",
+  video_completion_change: "",
+  profile_visit_change: "",
+  notes: ""
 };
 
 function formatDate(value: string) {
@@ -291,17 +420,13 @@ function App() {
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [publishLogs, setPublishLogs] = useState<PublishLog[]>([]);
   const [analyticsRecords, setAnalyticsRecords] = useState<AnalyticsRecord[]>([]);
+  const [dashboardRecords, setDashboardRecords] = useState<DashboardRecord[]>([]);
+  const [dashboardAnalysis, setDashboardAnalysis] = useState<AiDashboardAnalysis | null>(null);
   const [riskLogs, setRiskLogs] = useState<RiskLog[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [accountName, setAccountName] = useState("");
   const [personaForm, setPersonaForm] = useState<PersonaForm>(emptyPersonaForm);
-  const [draftForm, setDraftForm] = useState({
-    title: "",
-    body: "",
-    tags: "",
-    cover_text: "",
-    topic: ""
-  });
+  const [draftForm, setDraftForm] = useState<DraftForm>(emptyDraftForm);
   const [scheduleForm, setScheduleForm] = useState({
     draft_id: "",
     scheduled_at: ""
@@ -317,14 +442,8 @@ function App() {
     published_at: "",
     note_url: ""
   });
-  const [analyticsForm, setAnalyticsForm] = useState({
-    publish_log_id: "",
-    views: "0",
-    likes: "0",
-    favorites: "0",
-    comments: "0",
-    recorded_at: ""
-  });
+  const [analyticsForm, setAnalyticsForm] = useState<AnalyticsForm>(emptyAnalyticsForm);
+  const [dashboardForm, setDashboardForm] = useState<DashboardForm>(emptyDashboardForm);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.account_id === selectedAccountId) || null,
@@ -359,13 +478,22 @@ function App() {
       return;
     }
     try {
-      const [accountList, draftList, taskList, riskList, publishLogList, analyticsList] = await Promise.all([
+      const [
+        accountList,
+        draftList,
+        taskList,
+        riskList,
+        publishLogList,
+        analyticsList,
+        dashboardList
+      ] = await Promise.all([
         apiRequest<Account[]>("/accounts"),
         apiRequest<Draft[]>("/drafts"),
         apiRequest<PublishTask[]>("/publish-tasks"),
         apiRequest<RiskLog[]>("/risk-logs"),
         apiRequest<PublishLog[]>("/publish-logs"),
-        apiRequest<AnalyticsRecord[]>("/analytics-records")
+        apiRequest<AnalyticsRecord[]>("/analytics-records"),
+        apiRequest<DashboardRecord[]>("/dashboard-records")
       ]);
       setAccounts(accountList);
       setDrafts(draftList);
@@ -373,6 +501,7 @@ function App() {
       setRiskLogs(riskList);
       setPublishLogs(publishLogList);
       setAnalyticsRecords(analyticsList);
+      setDashboardRecords(dashboardList);
       if (!selectedAccountId && accountList[0]) {
         setSelectedAccountId(accountList[0].account_id);
       }
@@ -524,6 +653,8 @@ function App() {
     setMediaAssets([]);
     setPublishLogs([]);
     setAnalyticsRecords([]);
+    setDashboardRecords([]);
+    setDashboardAnalysis(null);
     setSelectedAccountId("");
   }
 
@@ -590,7 +721,6 @@ function App() {
             accounts={accounts}
             analyticsRecords={analyticsRecords}
             drafts={drafts}
-            mediaAssets={mediaAssets}
             publishTasks={publishTasks}
             riskLogs={riskLogs}
           />
@@ -697,13 +827,22 @@ function App() {
                   }),
                   method: "POST"
                 });
-                setDraftForm({ title: "", body: "", tags: "", cover_text: "", topic: "" });
+                setDraftForm((current) => ({
+                  ...emptyDraftForm,
+                  count: current.count,
+                  extra_requirements: current.extra_requirements
+                }));
               })
             }
             onSubmitAi={() =>
               runMutation(async () => {
-                await apiRequest<Draft>("/ai/generate-draft", {
-                  body: JSON.stringify({ account_id: selectedAccountId, topic: draftForm.topic }),
+                await apiRequest<Draft[]>("/ai/generate-draft-options", {
+                  body: JSON.stringify({
+                    account_id: selectedAccountId,
+                    topic: draftForm.topic,
+                    count: Number(draftForm.count),
+                    extra_requirements: draftForm.extra_requirements
+                  }),
                   method: "POST"
                 });
                 setDraftForm((current) => ({ ...current, topic: "" }));
@@ -739,9 +878,12 @@ function App() {
           />
         ) : null}
         {activePage === "合规" ? <CompliancePage riskLogs={riskLogs} /> : null}
-        {activePage === "发布记录" ? (
+        {activePage === "运营分析" ? (
           <PublishRecordsPage
             accounts={accounts}
+            dashboardAnalysis={dashboardAnalysis}
+            dashboardForm={dashboardForm}
+            dashboardRecords={dashboardRecords}
             analyticsForm={analyticsForm}
             analyticsRecords={analyticsRecords}
             drafts={drafts}
@@ -768,14 +910,67 @@ function App() {
                   }),
                   method: "POST"
                 });
-                setAnalyticsForm({
-                  publish_log_id: "",
-                  views: "0",
-                  likes: "0",
-                  favorites: "0",
-                  comments: "0",
-                  recorded_at: ""
+                setAnalyticsForm(emptyAnalyticsForm);
+              })
+            }
+            onAnalyzeDashboard={() =>
+              runMutation(async () => {
+                const targetRecord = dashboardRecords.find(
+                  (item) => !selectedAccountId || item.account_id === selectedAccountId
+                );
+                if (!selectedAccountId) {
+                  throw new Error("请先选择账号再生成 AI 运营建议。");
+                }
+                if (!targetRecord) {
+                  throw new Error("请先录入至少一条创作中心数据。");
+                }
+                const analysis = await apiRequest<AiDashboardAnalysis>("/ai/analyze-dashboard", {
+                  body: JSON.stringify({
+                    account_id: selectedAccountId,
+                    dashboard_record_id: targetRecord.id
+                  }),
+                  method: "POST"
                 });
+                setDashboardAnalysis(analysis);
+              })
+            }
+            onDashboardChange={setDashboardForm}
+            onDashboardSubmit={() =>
+              runMutation(async () => {
+                if (!selectedAccountId) {
+                  throw new Error("请先选择账号再录入创作中心数据。");
+                }
+                await apiRequest<DashboardRecord>("/dashboard-records", {
+                  body: JSON.stringify({
+                    account_id: selectedAccountId,
+                    period_label: dashboardForm.period_label,
+                    period_start: dashboardForm.period_start,
+                    period_end: dashboardForm.period_end,
+                    exposure_count: Number(dashboardForm.exposure_count),
+                    view_count: Number(dashboardForm.view_count),
+                    like_count: Number(dashboardForm.like_count),
+                    comment_count: Number(dashboardForm.comment_count),
+                    net_follower_count: Number(dashboardForm.net_follower_count),
+                    new_follow_count: Number(dashboardForm.new_follow_count),
+                    cover_click_rate: Number(dashboardForm.cover_click_rate),
+                    video_completion_rate: Number(dashboardForm.video_completion_rate),
+                    favorite_count: Number(dashboardForm.favorite_count),
+                    share_count: Number(dashboardForm.share_count),
+                    unfollow_count: Number(dashboardForm.unfollow_count),
+                    profile_visit_count: Number(dashboardForm.profile_visit_count),
+                    exposure_change: dashboardForm.exposure_change,
+                    view_change: dashboardForm.view_change,
+                    like_change: dashboardForm.like_change,
+                    comment_change: dashboardForm.comment_change,
+                    follower_change: dashboardForm.follower_change,
+                    cover_click_change: dashboardForm.cover_click_change,
+                    video_completion_change: dashboardForm.video_completion_change,
+                    profile_visit_change: dashboardForm.profile_visit_change,
+                    notes: dashboardForm.notes
+                  }),
+                  method: "POST"
+                });
+                setDashboardForm(emptyDashboardForm);
               })
             }
             onPublishChange={setPublishForm}
@@ -820,14 +1015,12 @@ function Dashboard({
   accounts,
   analyticsRecords,
   drafts,
-  mediaAssets,
   publishTasks,
   riskLogs
 }: {
   accounts: Account[];
   analyticsRecords: AnalyticsRecord[];
   drafts: Draft[];
-  mediaAssets: MediaAsset[];
   publishTasks: PublishTask[];
   riskLogs: RiskLog[];
 }) {
@@ -837,8 +1030,7 @@ function Dashboard({
       <Metric label="账号" tone="green" value={String(accounts.length)} />
       <Metric label="待审核草稿" tone="amber" value={String(pendingDrafts)} />
       <Metric label="已排期任务" tone="blue" value={String(publishTasks.length)} />
-      <Metric label="素材记录" tone="blue" value={String(mediaAssets.length)} />
-      <Metric label="发布记录" tone="green" value={String(analyticsRecords.length)} />
+      <Metric label="单篇数据" tone="green" value={String(analyticsRecords.length)} />
       <article className="panel wide">
         <div>
           <h2>运营准备状态</h2>
@@ -1135,10 +1327,10 @@ function DraftsPage({
 }: {
   accounts: Account[];
   drafts: Draft[];
-  form: { title: string; body: string; tags: string; cover_text: string; topic: string };
+  form: DraftForm;
   isBusy: boolean;
   selectedAccountId: string;
-  onChange: (value: { title: string; body: string; tags: string; cover_text: string; topic: string }) => void;
+  onChange: (value: DraftForm) => void;
   onCopy: (value: string) => void;
   onOpenCreator: () => void;
   onReview: (draftId: string, reviewStatus: string) => void;
@@ -1192,16 +1384,35 @@ function DraftsPage({
             onSubmitAi();
           }}
         >
+          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
           <label>
-            AI 主题
+            GPT 主题
             <input
               value={form.topic}
               onChange={(event) => onChange({ ...form, topic: event.target.value })}
-              placeholder="夏季保湿面霜"
+              placeholder="例如：合肥直播预告、夏季护肤清单"
+            />
+          </label>
+          <label>
+            生成数量
+            <select value={form.count} onChange={(event) => onChange({ ...form, count: event.target.value })}>
+              <option value="1">1 版</option>
+              <option value="2">2 版</option>
+              <option value="3">3 版</option>
+              <option value="4">4 版</option>
+              <option value="5">5 版</option>
+            </select>
+          </label>
+          <label>
+            额外要求
+            <textarea
+              value={form.extra_requirements}
+              onChange={(event) => onChange({ ...form, extra_requirements: event.target.value })}
+              placeholder="例如：一版偏转化，一版偏种草；标题更口语化"
             />
           </label>
           <button className="secondary-button" disabled={isBusy || !selectedAccountId || !form.topic} type="submit">
-            生成 AI 草稿
+            生成 GPT 文案
           </button>
         </form>
       </Panel>
@@ -1352,6 +1563,9 @@ function CompliancePage({ riskLogs }: { riskLogs: RiskLog[] }) {
 
 function PublishRecordsPage({
   accounts,
+  dashboardAnalysis,
+  dashboardForm,
+  dashboardRecords,
   analyticsForm,
   analyticsRecords,
   drafts,
@@ -1361,43 +1575,149 @@ function PublishRecordsPage({
   selectedAccountId,
   onAnalyticsChange,
   onAnalyticsSubmit,
+  onAnalyzeDashboard,
+  onDashboardChange,
+  onDashboardSubmit,
   onPublishChange,
   onPublishSubmit,
   onSelect
 }: {
   accounts: Account[];
-  analyticsForm: {
-    publish_log_id: string;
-    views: string;
-    likes: string;
-    favorites: string;
-    comments: string;
-    recorded_at: string;
-  };
+  dashboardAnalysis: AiDashboardAnalysis | null;
+  dashboardForm: DashboardForm;
+  dashboardRecords: DashboardRecord[];
+  analyticsForm: AnalyticsForm;
   analyticsRecords: AnalyticsRecord[];
   drafts: Draft[];
   isBusy: boolean;
   publishForm: { draft_id: string; published_at: string; note_url: string };
   publishLogs: PublishLog[];
   selectedAccountId: string;
-  onAnalyticsChange: (value: {
-    publish_log_id: string;
-    views: string;
-    likes: string;
-    favorites: string;
-    comments: string;
-    recorded_at: string;
-  }) => void;
+  onAnalyticsChange: (value: AnalyticsForm) => void;
   onAnalyticsSubmit: () => void;
+  onAnalyzeDashboard: () => void;
+  onDashboardChange: (value: DashboardForm) => void;
+  onDashboardSubmit: () => void;
   onPublishChange: (value: { draft_id: string; published_at: string; note_url: string }) => void;
   onPublishSubmit: () => void;
   onSelect: (value: string) => void;
 }) {
   const accountMap = new Map(accounts.map((account) => [account.account_id, account.display_name]));
   const selectedDrafts = drafts.filter((draft) => !selectedAccountId || draft.account_id === selectedAccountId);
+  const selectedDashboardRecords = dashboardRecords.filter(
+    (record) => !selectedAccountId || record.account_id === selectedAccountId
+  );
 
   return (
     <section className="page-grid">
+      <Panel title="创作中心数据总览">
+        <form
+          className="form-grid two-column"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onDashboardSubmit();
+          }}
+        >
+          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
+          <label>
+            统计周期
+            <select
+              value={dashboardForm.period_label}
+              onChange={(event) => onDashboardChange({ ...dashboardForm, period_label: event.target.value })}
+            >
+              <option value="近7日">近7日</option>
+              <option value="近30日">近30日</option>
+              <option value="自定义">自定义</option>
+            </select>
+          </label>
+          <label>
+            开始日期
+            <input
+              type="date"
+              value={dashboardForm.period_start}
+              onChange={(event) => onDashboardChange({ ...dashboardForm, period_start: event.target.value })}
+            />
+          </label>
+          <label>
+            结束日期
+            <input
+              type="date"
+              value={dashboardForm.period_end}
+              onChange={(event) => onDashboardChange({ ...dashboardForm, period_end: event.target.value })}
+            />
+          </label>
+          <NumberField form={dashboardForm} label="曝光数" name="exposure_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="观看数" name="view_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="点赞数" name="like_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="评论数" name="comment_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="净涨粉" name="net_follower_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="新增关注" name="new_follow_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="封面点击率 %" name="cover_click_rate" onChange={onDashboardChange} />
+          <NumberField
+            form={dashboardForm}
+            label="视频完播率 %"
+            name="video_completion_rate"
+            onChange={onDashboardChange}
+          />
+          <NumberField form={dashboardForm} label="收藏数" name="favorite_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="分享数" name="share_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="取消关注" name="unfollow_count" onChange={onDashboardChange} />
+          <NumberField form={dashboardForm} label="主页访客" name="profile_visit_count" onChange={onDashboardChange} />
+          <TextField form={dashboardForm} label="曝光环比" name="exposure_change" onChange={onDashboardChange} />
+          <TextField form={dashboardForm} label="观看环比" name="view_change" onChange={onDashboardChange} />
+          <TextField form={dashboardForm} label="点赞环比" name="like_change" onChange={onDashboardChange} />
+          <TextField form={dashboardForm} label="评论环比" name="comment_change" onChange={onDashboardChange} />
+          <TextField form={dashboardForm} label="粉丝环比" name="follower_change" onChange={onDashboardChange} />
+          <TextField form={dashboardForm} label="封面点击率环比" name="cover_click_change" onChange={onDashboardChange} />
+          <TextField
+            form={dashboardForm}
+            label="完播率环比"
+            name="video_completion_change"
+            onChange={onDashboardChange}
+          />
+          <TextField form={dashboardForm} label="主页访客环比" name="profile_visit_change" onChange={onDashboardChange} />
+          <label className="full-span">
+            备注
+            <textarea
+              value={dashboardForm.notes}
+              onChange={(event) => onDashboardChange({ ...dashboardForm, notes: event.target.value })}
+              placeholder="例如：来自小红书创作中心截图手动录入，某篇笔记异常拉高曝光"
+            />
+          </label>
+          <button
+            className="primary-button"
+            disabled={isBusy || !selectedAccountId || !dashboardForm.period_start || !dashboardForm.period_end}
+            type="submit"
+          >
+            保存总览数据
+          </button>
+        </form>
+      </Panel>
+      <Panel title="AI 运营建议">
+        <div className="record-stack">
+          <button
+            className="primary-button"
+            disabled={isBusy || !selectedAccountId || !selectedDashboardRecords.length}
+            onClick={onAnalyzeDashboard}
+            type="button"
+          >
+            根据最新数据生成建议
+          </button>
+          {dashboardAnalysis ? (
+            <article className="record-card analysis-card">
+              <div>
+                <h3>{dashboardAnalysis.summary}</h3>
+                <InsightList title="问题判断" items={dashboardAnalysis.diagnosis} />
+                <InsightList title="优化建议" items={dashboardAnalysis.recommendations} />
+                <InsightList title="下一步动作" items={dashboardAnalysis.next_actions} />
+                <InsightList title="选题方向" items={dashboardAnalysis.content_angles} />
+              </div>
+            </article>
+          ) : (
+            <div className="empty-state">录入创作中心数据后，可生成面向当前账号人设的 AI 建议。</div>
+          )}
+        </div>
+      </Panel>
       <Panel title="人工发布结果">
         <form
           className="form-grid"
@@ -1446,7 +1766,7 @@ function PublishRecordsPage({
           </button>
         </form>
       </Panel>
-      <Panel title="数据录入">
+      <Panel title="单篇笔记数据">
         <form
           className="form-grid two-column"
           onSubmit={(event) => {
@@ -1513,7 +1833,36 @@ function PublishRecordsPage({
           )}
         </div>
       </Panel>
-      <Panel title="数据记录">
+      <Panel title="创作中心总览记录">
+        <div className="record-stack">
+          {selectedDashboardRecords.length ? (
+            selectedDashboardRecords.map((record) => (
+              <article className="record-card compact" key={record.id}>
+                <div>
+                  <h3>
+                    {record.period_label} / {record.exposure_count.toLocaleString()} 曝光 /{" "}
+                    {record.view_count.toLocaleString()} 观看
+                  </h3>
+                  <p>
+                    点赞 {record.like_count} / 评论 {record.comment_count} / 收藏 {record.favorite_count} / 分享{" "}
+                    {record.share_count}
+                  </p>
+                  <small>
+                    封面点击率 {record.cover_click_rate}% / 完播率 {record.video_completion_rate}% / 主页访客{" "}
+                    {record.profile_visit_count}
+                  </small>
+                </div>
+                <span className="badge blue">
+                  {record.period_start} - {record.period_end}
+                </span>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">暂无创作中心总览数据。</div>
+          )}
+        </div>
+      </Panel>
+      <Panel title="单篇数据记录">
         <div className="record-stack">
           {analyticsRecords.length ? (
             analyticsRecords.map((record) => (
@@ -1542,24 +1891,10 @@ function NumberField({
   name,
   onChange
 }: {
-  form: {
-    publish_log_id: string;
-    views: string;
-    likes: string;
-    favorites: string;
-    comments: string;
-    recorded_at: string;
-  };
+  form: Record<string, string>;
   label: string;
-  name: "views" | "likes" | "favorites" | "comments";
-  onChange: (value: {
-    publish_log_id: string;
-    views: string;
-    likes: string;
-    favorites: string;
-    comments: string;
-    recorded_at: string;
-  }) => void;
+  name: string;
+  onChange: (value: any) => void;
 }) {
   return (
     <label>
@@ -1571,6 +1906,46 @@ function NumberField({
         onChange={(event) => onChange({ ...form, [name]: event.target.value })}
       />
     </label>
+  );
+}
+
+function TextField({
+  form,
+  label,
+  name,
+  onChange
+}: {
+  form: Record<string, string>;
+  label: string;
+  name: string;
+  onChange: (value: any) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <input
+        value={form[name]}
+        onChange={(event) => onChange({ ...form, [name]: event.target.value })}
+        placeholder="-40%"
+      />
+    </label>
+  );
+}
+
+function InsightList({ items, title }: { items: string[]; title: string }) {
+  return (
+    <div className="insight-list">
+      <strong>{title}</strong>
+      {items.length ? (
+        <ul>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>暂无。</p>
+      )}
+    </div>
   );
 }
 

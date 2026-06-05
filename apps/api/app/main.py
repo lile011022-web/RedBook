@@ -7,6 +7,7 @@ from app.api import (
     analytics,
     ai,
     auth,
+    dashboard_records,
     drafts,
     health,
     media,
@@ -40,6 +41,7 @@ app.include_router(schedule.router)
 app.include_router(media.router)
 app.include_router(publish_logs.router)
 app.include_router(analytics.router)
+app.include_router(dashboard_records.router)
 app.include_router(risks.router)
 app.include_router(settings.router)
 app.include_router(health.router)
