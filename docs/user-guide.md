@@ -52,52 +52,68 @@ apps/desktop/release/RedBook Compliance Ops Setup 0.1.0.exe
 ## 2. 注册与登录
 
 1. 打开软件。
-2. API base URL 保持 `http://127.0.0.1:8010`。
-3. 首次使用选择 `Register`，输入邮箱和密码，点击 `Create account`。
-4. 已注册用户选择 `Login`，点击 `Login`。
+2. 后端地址保持 `http://127.0.0.1:8010`。
+3. 首次使用选择 `注册`，输入邮箱和密码，点击 `创建账号`。
+4. 已注册用户选择 `登录`，点击 `登录`。
 
 默认输入框里的 `operator@example.com` 和 `password123` 只是示例，可以改成你自己的邮箱和密码。
 
 ## 3. 推荐使用流程
 
-### Step 1: Accounts
+### Step 1: 账号
 
 创建小红书账号档案。这里记录的是运营档案，不会登录小红书。
 
 填写：
 
-- Display name：账号显示名
-- Status：账号状态
-- Health score：账号健康分，可用于人工判断风险
+- 账号名称：账号显示名
+- 状态：账号状态
+- 健康分：用于人工判断风险
 
-### Step 2: Personas
+## 多账号小红书独立窗口
+
+每个 RedBook 账号都可以打开自己的小红书官方工作台窗口。窗口使用独立持久会话，因此账号 A 和账号 B 的登录状态不会混在一起。
+
+使用方式：
+
+1. 进入 `账号` 页面。
+2. 为每个小红书账号创建一个 RedBook 账号档案。
+3. 点击某个账号卡片上的 `打开小红书工作台`。
+4. 在打开的小红书官方页面中手动登录。
+5. 关闭窗口后，下次从同一个账号打开，会继续使用该账号的本地登录态。
+
+如果小红书官方要求重新登录，需要按官方页面提示手动登录。RedBook 不会自动登录，也不会绕过官方验证。
+
+如果要换号或清掉本地登录态，点击 `清除登录状态`。该操作只影响当前账号，不影响其他账号。
+
+### Step 2: 人设
 
 选择账号后维护人设。
 
 填写：
 
-- Positioning：账号定位
-- Content direction：内容方向
-- Tone：语气风格
-- Disabled words：禁用词，用英文逗号分隔
-- Publish frequency：发布频率
+- 账号定位
+- 内容方向
+- 语气风格
+- 禁用词，用英文逗号分隔
+- 发布频率
 
 这些信息会用于草稿合规检查和 AI 草稿提示。
 
-### Step 3: Media
+### Step 3: 素材
 
 录入素材元数据。
 
 填写：
 
-- Filename：素材文件名
-- Content type：例如 `image/png`
-- Preview URL：图片预览地址
+- 文件名
+- 内容类型：例如 `image/png`
+- 预览图地址
 - SHA256：可选，用于识别复用素材
 
 如果填写了可访问的图片 URL，页面会显示图片预览。
 
-### Step 4: Drafts
+### Step 4: 草稿
 
 创建或生成草稿。
 
@@ -110,13 +126,13 @@ apps/desktop/release/RedBook Compliance Ops Setup 0.1.0.exe
 AI 草稿：
 
 - 先配置 OpenAI API Key
-- 输入 Topic
+- 输入 AI 主题
 - 生成后默认是 `needs_review`
-- 必须人工点击 `Approve` 后才能排期
+- 必须人工点击 `通过` 后才能排期
 
 页面里的复制按钮只复制标题、正文、标签或封面文字，不会自动发布。
 
-### Step 5: Schedule
+### Step 5: 排期
 
 只对已审核通过的草稿进行人工排期记录。
 
@@ -126,29 +142,29 @@ AI 草稿：
 - 多账号同一分钟冲突会被阻止
 - 这里只是记录排期，不会自动打开平台或自动发布
 
-### Step 6: Publish Records
+### Step 6: 发布记录
 
 人工在小红书发布完成后，回到软件记录发布结果。
 
 填写：
 
-- Draft：对应草稿
-- Published time：实际发布时间
-- Note URL：小红书笔记链接
+- 草稿：对应草稿
+- 发布时间：实际发布时间
+- 笔记链接：小红书笔记链接
 
-### Step 7: Analytics Entry
+### Step 7: 数据录入
 
 手动录入数据表现。
 
 填写：
 
-- Views：浏览量
-- Likes：点赞
-- Favorites：收藏
-- Comments：评论
-- Recorded time：数据记录时间
+- 浏览量
+- 点赞
+- 收藏
+- 评论
+- 记录时间
 
-### Step 8: Compliance
+### Step 8: 合规
 
 查看风险日志，例如：
 
@@ -170,7 +186,7 @@ AI 草稿：
 python -m uvicorn app.main:app --reload --port 8010
 ```
 
-3. 再打开软件登录。
+2. 再打开软件登录。
 
 ### 白屏
 
@@ -178,15 +194,15 @@ python -m uvicorn app.main:app --reload --port 8010
 
 ### 登录失败
 
-如果是首次使用，请先切换到 `Register` 创建账号。已经注册过的邮箱再次注册会失败，请切回 `Login`。
+如果是首次使用，请先切换到 `注册` 创建账号。已经注册过的邮箱再次注册会失败，请切回 `登录`。
 
 ### 后端连接不上
 
 检查：
 
 - 后端是否启动
-- API base URL 是否是 `http://127.0.0.1:8010`
-- API base URL 指向的端口是否被其他程序占用
+- 后端地址是否是 `http://127.0.0.1:8010`
+- 后端地址指向的端口是否被其他程序占用
 - `/health` 是否返回 `service: "redbook-api"`
 
 ## 5. 合规边界

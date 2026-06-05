@@ -31,7 +31,7 @@ export function clearToken() {
 async function readError(response: Response) {
   const text = await response.text();
   if (!text) {
-    return `${response.status} ${response.statusText}`;
+    return `${response.status} ${response.statusText || "请求失败"}`;
   }
 
   try {

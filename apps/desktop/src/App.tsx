@@ -114,19 +114,34 @@ type PersonaForm = {
 };
 
 const navItems = [
-  "Dashboard",
-  "Accounts",
-  "Personas",
-  "Media",
-  "Drafts",
-  "Schedule",
-  "Compliance",
-  "Publish Records",
-  "Settings"
+  "仪表盘",
+  "账号",
+  "人设",
+  "素材",
+  "草稿",
+  "排期",
+  "合规",
+  "发布记录",
+  "设置"
 ];
 
 const CREATOR_URL = "https://creator.xiaohongshu.com/";
 const EXPECTED_BACKEND_SERVICE = "redbook-api";
+
+const statusLabels: Record<string, string> = {
+  active: "启用",
+  approved: "已通过",
+  blocked: "已阻止",
+  draft: "草稿",
+  failed: "失败",
+  manual: "人工",
+  needs_review: "待审核",
+  pending: "待处理",
+  rejected: "已拒绝",
+  reviewed: "已审核",
+  scheduled: "已排期",
+  warning: "提醒"
+};
 
 const emptyPersonaForm: PersonaForm = {
   positioning: "",
@@ -154,6 +169,10 @@ function badgeTone(status: string) {
     return "red";
   }
   return "blue";
+}
+
+function statusLabel(status: string) {
+  return statusLabels[status] || status;
 }
 
 function tagList(value: string) {
@@ -206,29 +225,28 @@ function AuthScreen({
           <div className="brand-mark">R</div>
           <div>
             <strong>RedBook</strong>
-            <span>Compliance Ops</span>
+            <span>合规运营台</span>
           </div>
         </div>
         <div>
-          <p className="eyebrow">Phase 5 workspace</p>
-          <h1>Sign in to operate manual publishing workflows.</h1>
+          <p className="eyebrow">RedBook 工作台</p>
+          <h1>登录后开始人工发布工作流</h1>
           <p className="muted">
-            Connect to the FastAPI backend, review AI drafts, and schedule only human-approved
-            content.
+            连接 RedBook 后端，审核 AI 草稿，并只排期人工确认的内容。
           </p>
         </div>
         {error ? <div className="alert">{error}</div> : null}
         <form className="form-grid" onSubmit={submit}>
           <label>
-            API base URL
+            后端地址
             <input value={apiBaseUrl} onChange={(event) => onApiBaseUrlChange(event.target.value)} />
           </label>
           <label>
-            Email
+            邮箱
             <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
           </label>
           <label>
-            Password
+            密码
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -241,18 +259,18 @@ function AuthScreen({
               onClick={() => setMode("login")}
               type="button"
             >
-              Login
+              登录
             </button>
             <button
               className={mode === "register" ? "selected" : ""}
               onClick={() => setMode("register")}
               type="button"
             >
-              Register
+              注册
             </button>
           </div>
           <button className="primary-button" disabled={isBusy} type="submit">
-            {isBusy ? "Working..." : mode === "login" ? "Login" : "Create account"}
+            {isBusy ? "处理中..." : mode === "login" ? "登录" : "创建账号"}
           </button>
         </form>
       </section>
@@ -324,9 +342,9 @@ function App() {
       if (response.service !== EXPECTED_BACKEND_SERVICE) {
         setHealth(null);
         setError(
-          `The API base URL is responding, but it is not RedBook API. Current service: ${
+          `当前后端地址有响应，但不是 RedBook API。当前服务：${
             response.service || "unknown"
-          }. Please update the API base URL to the RedBook backend, such as http://127.0.0.1:8010.`
+          }。请把后端地址改为 RedBook 后端，例如 http://127.0.0.1:8010。`
         );
         return;
       }
@@ -359,7 +377,7 @@ function App() {
         setSelectedAccountId(accountList[0].account_id);
       }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Could not load records.");
+      setError(requestError instanceof Error ? requestError.message : "无法加载记录。");
     }
   }, [selectedAccountId]);
 
@@ -373,7 +391,7 @@ function App() {
       const mediaList = await apiRequest<MediaAsset[]>(`/accounts/${accountId}/media-assets`);
       setMediaAssets(mediaList);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Could not load media.");
+      setError(requestError instanceof Error ? requestError.message : "无法加载素材。");
     }
   }, []);
 
@@ -424,9 +442,9 @@ function App() {
       const healthResponse = await apiRequest<HealthResponse>("/health");
       if (healthResponse.service !== EXPECTED_BACKEND_SERVICE) {
         throw new Error(
-          `The API base URL is not RedBook API. Current service: ${
+          `当前后端地址不是 RedBook API。当前服务：${
             healthResponse.service || "unknown"
-          }. Please start RedBook backend at this URL.`
+          }。请在这个地址启动 RedBook 后端。`
         );
       }
       if (mode === "register") {
@@ -443,7 +461,7 @@ function App() {
       setIsAuthenticated(true);
       await loadData();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Authentication failed.");
+      setError(requestError instanceof Error ? requestError.message : "登录或注册失败。");
     } finally {
       setIsBusy(false);
     }
@@ -459,9 +477,40 @@ function App() {
         await loadMedia(selectedAccountId);
       }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Request failed.");
+      setError(requestError instanceof Error ? requestError.message : "请求失败。");
     } finally {
       setIsBusy(false);
+    }
+  }
+
+  async function openAccountWorkbench(account: Account) {
+    setError("");
+    if (!window.redbook?.openXhsWorkbench) {
+      setError("当前环境不支持小红书独立窗口，请使用桌面版。");
+      return;
+    }
+    try {
+      await window.redbook.openXhsWorkbench(account.account_id, account.display_name);
+    } catch (workbenchError) {
+      setError(workbenchError instanceof Error ? workbenchError.message : "无法打开小红书工作台。");
+    }
+  }
+
+  async function clearAccountWorkbenchSession(account: Account) {
+    setError("");
+    if (!window.redbook?.clearXhsSession) {
+      setError("当前环境不支持清除小红书登录状态，请使用桌面版。");
+      return;
+    }
+    const confirmed = window.confirm("确认清除该账号的小红书登录状态？清除后需要重新手动登录。");
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await window.redbook.clearXhsSession(account.account_id);
+      setError("已清除该账号的小红书登录状态。");
+    } catch (clearError) {
+      setError(clearError instanceof Error ? clearError.message : "无法清除该账号的小红书登录状态。");
     }
   }
 
@@ -497,7 +546,7 @@ function App() {
           <div className="brand-mark">R</div>
           <div>
             <strong>RedBook</strong>
-            <span>Compliance Ops</span>
+            <span>合规运营台</span>
           </div>
         </div>
 
@@ -518,26 +567,25 @@ function App() {
       <main className="content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Phase 5 real data</p>
+            <p className="eyebrow">真实数据工作台</p>
             <h1>{activePage}</h1>
             <p>
-              Manual publishing operations connected to FastAPI. No platform automation is built
-              into this workspace.
+              连接 RedBook 后端进行人工发布运营。本工作台不包含平台自动化能力。
             </p>
           </div>
           <div className="topbar-actions">
             <span className={health ? "status-pill online" : "status-pill attention"}>
-              {health ? `${health.service}: ${health.status}` : "API pending"}
+              {health ? `${health.service}: ${health.status}` : "后端未连接"}
             </span>
             <button className="quiet-button" onClick={logout} type="button">
-              Logout
+              退出登录
             </button>
           </div>
         </header>
 
         {error ? <div className="alert">{error}</div> : null}
 
-        {activePage === "Dashboard" ? (
+        {activePage === "仪表盘" ? (
           <Dashboard
             accounts={accounts}
             analyticsRecords={analyticsRecords}
@@ -547,12 +595,13 @@ function App() {
             riskLogs={riskLogs}
           />
         ) : null}
-        {activePage === "Accounts" ? (
+        {activePage === "账号" ? (
           <AccountsPage
             accountName={accountName}
             accounts={accounts}
             isBusy={isBusy}
             onAccountNameChange={setAccountName}
+            onClearXhsSession={clearAccountWorkbenchSession}
             onCreate={() =>
               runMutation(async () => {
                 await apiRequest<Account>("/accounts", {
@@ -562,9 +611,10 @@ function App() {
                 setAccountName("");
               })
             }
+            onOpenXhsWorkbench={openAccountWorkbench}
           />
         ) : null}
-        {activePage === "Personas" ? (
+        {activePage === "人设" ? (
           <PersonasPage
             accounts={accounts}
             form={personaForm}
@@ -585,7 +635,7 @@ function App() {
             }
           />
         ) : null}
-        {activePage === "Media" ? (
+        {activePage === "素材" ? (
           <MediaPage
             accounts={accounts}
             form={mediaForm}
@@ -611,7 +661,7 @@ function App() {
             }
           />
         ) : null}
-        {activePage === "Drafts" ? (
+        {activePage === "草稿" ? (
           <DraftsPage
             accounts={accounts}
             drafts={drafts}
@@ -661,7 +711,7 @@ function App() {
             }
           />
         ) : null}
-        {activePage === "Schedule" ? (
+        {activePage === "排期" ? (
           <SchedulePage
             accounts={accounts}
             approvedDrafts={approvedDrafts}
@@ -673,7 +723,7 @@ function App() {
               runMutation(async () => {
                 const draft = drafts.find((item) => item.id === scheduleForm.draft_id);
                 if (!draft) {
-                  throw new Error("Choose an approved draft before scheduling.");
+                  throw new Error("请先选择已审核通过的草稿再排期。");
                 }
                 await apiRequest<PublishTask>("/publish-tasks", {
                   body: JSON.stringify({
@@ -688,8 +738,8 @@ function App() {
             }
           />
         ) : null}
-        {activePage === "Compliance" ? <CompliancePage riskLogs={riskLogs} /> : null}
-        {activePage === "Publish Records" ? (
+        {activePage === "合规" ? <CompliancePage riskLogs={riskLogs} /> : null}
+        {activePage === "发布记录" ? (
           <PublishRecordsPage
             accounts={accounts}
             analyticsForm={analyticsForm}
@@ -704,7 +754,7 @@ function App() {
               runMutation(async () => {
                 const publishLog = publishLogs.find((item) => item.id === analyticsForm.publish_log_id);
                 if (!publishLog) {
-                  throw new Error("Choose a publish record before adding analytics.");
+                  throw new Error("请先选择发布记录再录入数据。");
                 }
                 await apiRequest<AnalyticsRecord>("/analytics-records", {
                   body: JSON.stringify({
@@ -733,7 +783,7 @@ function App() {
               runMutation(async () => {
                 const draft = drafts.find((item) => item.id === publishForm.draft_id);
                 if (!draft) {
-                  throw new Error("Choose a draft before recording publish result.");
+                  throw new Error("请先选择草稿再记录发布结果。");
                 }
                 await apiRequest<PublishLog>("/publish-logs", {
                   body: JSON.stringify({
@@ -750,7 +800,7 @@ function App() {
             onSelect={setSelectedAccountId}
           />
         ) : null}
-        {activePage === "Settings" ? (
+        {activePage === "设置" ? (
           <SettingsPage
             apiBaseUrl={apiBaseUrl}
             health={health}
@@ -784,23 +834,22 @@ function Dashboard({
   const pendingDrafts = drafts.filter((draft) => draft.review_status === "needs_review").length;
   return (
     <section className="dashboard-grid">
-      <Metric label="Accounts" tone="green" value={String(accounts.length)} />
-      <Metric label="Drafts pending review" tone="amber" value={String(pendingDrafts)} />
-      <Metric label="Scheduled tasks" tone="blue" value={String(publishTasks.length)} />
-      <Metric label="Media assets" tone="blue" value={String(mediaAssets.length)} />
-      <Metric label="Publish records" tone="green" value={String(analyticsRecords.length)} />
+      <Metric label="账号" tone="green" value={String(accounts.length)} />
+      <Metric label="待审核草稿" tone="amber" value={String(pendingDrafts)} />
+      <Metric label="已排期任务" tone="blue" value={String(publishTasks.length)} />
+      <Metric label="素材记录" tone="blue" value={String(mediaAssets.length)} />
+      <Metric label="发布记录" tone="green" value={String(analyticsRecords.length)} />
       <article className="panel wide">
         <div>
-          <h2>Operational Readiness</h2>
+          <h2>运营准备状态</h2>
           <p>
-            Backend workflows are connected for account setup, persona guidance, draft review,
-            compliant scheduling, and risk log visibility.
+            后端已连接账号、人设、草稿审核、合规排期和风险日志流程。
           </p>
         </div>
         <div className="checklist">
-          <span>{riskLogs.length} risk logs visible</span>
-          <span>{drafts.filter((draft) => draft.source === "ai").length} AI suggestions saved</span>
-          <span>Manual publishing boundary protected</span>
+          <span>{riskLogs.length} 条风险日志可见</span>
+          <span>{drafts.filter((draft) => draft.source === "ai").length} 条 AI 建议已保存</span>
+          <span>人工发布边界已保护</span>
         </div>
       </article>
     </section>
@@ -821,17 +870,21 @@ function AccountsPage({
   accounts,
   isBusy,
   onAccountNameChange,
-  onCreate
+  onClearXhsSession,
+  onCreate,
+  onOpenXhsWorkbench
 }: {
   accountName: string;
   accounts: Account[];
   isBusy: boolean;
   onAccountNameChange: (value: string) => void;
+  onClearXhsSession: (account: Account) => void;
   onCreate: () => void;
+  onOpenXhsWorkbench: (account: Account) => void;
 }) {
   return (
     <section className="page-grid">
-      <Panel title="Create Account">
+      <Panel title="创建账号">
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -840,24 +893,47 @@ function AccountsPage({
           }}
         >
           <label>
-            Display name
+            账号名称
             <input value={accountName} onChange={(event) => onAccountNameChange(event.target.value)} />
           </label>
           <button className="primary-button" disabled={isBusy || !accountName.trim()} type="submit">
-            Add account
+            添加账号
           </button>
         </form>
       </Panel>
-      <RecordList
-        emptyText="No accounts yet."
-        items={accounts.map((account) => ({
-          id: account.id,
-          meta: `${account.health_score} health score`,
-          status: account.status,
-          title: account.display_name
-        }))}
-        title="Accounts"
-      />
+      <Panel title="账号列表">
+        <div className="record-stack">
+          {accounts.length ? (
+            accounts.map((account) => (
+              <article className="record-card compact" key={account.id}>
+                <div>
+                  <h3>{account.display_name}</h3>
+                  <p>健康分 {account.health_score}</p>
+                </div>
+                <div className="record-actions">
+                  <span className={`badge ${badgeTone(account.status)}`}>{statusLabel(account.status)}</span>
+                  <button
+                    className="secondary-button"
+                    onClick={() => onOpenXhsWorkbench(account)}
+                    type="button"
+                  >
+                    打开小红书工作台
+                  </button>
+                  <button
+                    className="quiet-button"
+                    onClick={() => onClearXhsSession(account)}
+                    type="button"
+                  >
+                    清除登录状态
+                  </button>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">暂无账号。</div>
+          )}
+        </div>
+      </Panel>
     </section>
   );
 }
@@ -880,7 +956,7 @@ function PersonasPage({
   onSubmit: () => void;
 }) {
   return (
-    <Panel title="Persona Settings">
+    <Panel title="人设设置">
       <form
         className="form-grid two-column"
         onSubmit={(event) => {
@@ -889,9 +965,9 @@ function PersonasPage({
         }}
       >
         <label>
-          Account
+          账号
           <select value={selectedAccountId} onChange={(event) => onSelect(event.target.value)}>
-            <option value="">Choose account</option>
+            <option value="">选择账号</option>
             {accounts.map((account) => (
               <option key={account.account_id} value={account.account_id}>
                 {account.display_name}
@@ -900,44 +976,44 @@ function PersonasPage({
           </select>
         </label>
         <label>
-          Tone
+          语气风格
           <input
             value={form.tone}
             onChange={(event) => onChange({ ...form, tone: event.target.value })}
           />
         </label>
         <label>
-          Positioning
+          账号定位
           <textarea
             value={form.positioning}
             onChange={(event) => onChange({ ...form, positioning: event.target.value })}
           />
         </label>
         <label>
-          Content direction
+          内容方向
           <textarea
             value={form.content_direction}
             onChange={(event) => onChange({ ...form, content_direction: event.target.value })}
           />
         </label>
         <label>
-          Disabled words
+          禁用词
           <input
             value={form.disabled_words}
             onChange={(event) => onChange({ ...form, disabled_words: event.target.value })}
-            placeholder="guaranteed, permanent"
+            placeholder="绝对、永久"
           />
         </label>
         <label>
-          Publish frequency
+          发布频率
           <input
             value={form.publish_frequency}
             onChange={(event) => onChange({ ...form, publish_frequency: event.target.value })}
-            placeholder="3/week"
+            placeholder="每周 3 篇"
           />
         </label>
         <button className="primary-button" disabled={isBusy || !selectedAccountId} type="submit">
-          Save persona
+          保存人设
         </button>
       </form>
     </Panel>
@@ -965,7 +1041,7 @@ function MediaPage({
 }) {
   return (
     <section className="page-grid">
-      <Panel title="Add Media Metadata">
+      <Panel title="添加素材记录">
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -975,7 +1051,7 @@ function MediaPage({
         >
           <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
           <label>
-            Filename
+            文件名
             <input
               value={form.filename}
               onChange={(event) => onChange({ ...form, filename: event.target.value })}
@@ -983,7 +1059,7 @@ function MediaPage({
             />
           </label>
           <label>
-            Content type
+            内容类型
             <input
               value={form.content_type}
               onChange={(event) => onChange({ ...form, content_type: event.target.value })}
@@ -991,7 +1067,7 @@ function MediaPage({
             />
           </label>
           <label>
-            Preview URL
+            预览图地址
             <input
               value={form.preview_url}
               onChange={(event) => onChange({ ...form, preview_url: event.target.value })}
@@ -1003,15 +1079,15 @@ function MediaPage({
             <input
               value={form.sha256}
               onChange={(event) => onChange({ ...form, sha256: event.target.value })}
-              placeholder="Optional 64-character checksum"
+              placeholder="可选，64 位校验值"
             />
           </label>
           <button className="primary-button" disabled={isBusy || !selectedAccountId || !form.filename} type="submit">
-            Save media
+            保存素材
           </button>
         </form>
       </Panel>
-      <Panel title="Media Library">
+      <Panel title="素材库">
         <div className="media-grid">
           {mediaAssets.length ? (
             mediaAssets.map((asset) => (
@@ -1027,15 +1103,15 @@ function MediaPage({
                   <h3>{asset.filename}</h3>
                   <p>{asset.storage_key}</p>
                   {asset.reused_from_asset_id ? (
-                    <span className="badge amber">Reuse warning</span>
+                    <span className="badge amber">复用提醒</span>
                   ) : (
-                    <span className="badge green">Scoped</span>
+                    <span className="badge green">账号隔离</span>
                   )}
                 </div>
               </article>
             ))
           ) : (
-            <div className="empty-state">No media metadata yet.</div>
+            <div className="empty-state">暂无素材记录。</div>
           )}
         </div>
       </Panel>
@@ -1072,7 +1148,7 @@ function DraftsPage({
 }) {
   return (
     <section className="page-grid">
-      <Panel title="Create Draft">
+      <Panel title="创建草稿">
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -1082,30 +1158,30 @@ function DraftsPage({
         >
           <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
           <label>
-            Title
+            标题
             <input value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} />
           </label>
           <label>
-            Body
+            正文
             <textarea value={form.body} onChange={(event) => onChange({ ...form, body: event.target.value })} />
           </label>
           <label>
-            Tags
+            标签
             <input
               value={form.tags}
               onChange={(event) => onChange({ ...form, tags: event.target.value })}
-              placeholder="skincare, summer"
+              placeholder="护肤, 夏季"
             />
           </label>
           <label>
-            Cover text
+            封面文案
             <input
               value={form.cover_text}
               onChange={(event) => onChange({ ...form, cover_text: event.target.value })}
             />
           </label>
           <button className="primary-button" disabled={isBusy || !selectedAccountId || !form.title} type="submit">
-            Save manual draft
+            保存手动草稿
           </button>
         </form>
         <div className="divider" />
@@ -1117,19 +1193,19 @@ function DraftsPage({
           }}
         >
           <label>
-            AI topic
+            AI 主题
             <input
               value={form.topic}
               onChange={(event) => onChange({ ...form, topic: event.target.value })}
-              placeholder="summer moisturizer"
+              placeholder="夏季保湿面霜"
             />
           </label>
           <button className="secondary-button" disabled={isBusy || !selectedAccountId || !form.topic} type="submit">
-            Generate AI suggestion
+            生成 AI 草稿
           </button>
         </form>
       </Panel>
-      <Panel title="Draft Review">
+      <Panel title="草稿审核">
         <div className="record-stack">
           {drafts.length ? (
             drafts.map((draft) => (
@@ -1137,36 +1213,38 @@ function DraftsPage({
                 <div>
                   <h3>{draft.title}</h3>
                   <p>{draft.body}</p>
-                  <small>{draft.tags.join(", ") || "No tags"} / {draft.source}</small>
+                  <small>{draft.tags.join(", ") || "无标签"} / {statusLabel(draft.source)}</small>
                 </div>
                 <div className="record-actions">
-                  <span className={`badge ${badgeTone(draft.review_status)}`}>{draft.review_status}</span>
+                  <span className={`badge ${badgeTone(draft.review_status)}`}>
+                    {statusLabel(draft.review_status)}
+                  </span>
                   <button className="quiet-button" onClick={() => onCopy(draft.title)} type="button">
-                    Copy title
+                    复制标题
                   </button>
                   <button className="quiet-button" onClick={() => onCopy(draft.body)} type="button">
-                    Copy body
+                    复制正文
                   </button>
                   <button className="quiet-button" onClick={() => onCopy(draft.tags.join(", "))} type="button">
-                    Copy tags
+                    复制标签
                   </button>
                   <button className="quiet-button" onClick={() => onCopy(draft.cover_text)} type="button">
-                    Copy cover
+                    复制封面
                   </button>
                   <button className="quiet-button" onClick={() => onReview(draft.id, "approved")} type="button">
-                    Approve
+                    通过
                   </button>
                   <button className="quiet-button" onClick={() => onReview(draft.id, "rejected")} type="button">
-                    Reject
+                    拒绝
                   </button>
                   <button className="secondary-button" onClick={onOpenCreator} type="button">
-                    Open creator
+                    打开创作者中心
                   </button>
                 </div>
               </article>
             ))
           ) : (
-            <div className="empty-state">No drafts yet.</div>
+            <div className="empty-state">暂无草稿。</div>
           )}
         </div>
       </Panel>
@@ -1194,7 +1272,7 @@ function SchedulePage({
   const accountMap = new Map(accounts.map((account) => [account.account_id, account.display_name]));
   return (
     <section className="page-grid">
-      <Panel title="Schedule Approved Draft">
+      <Panel title="排期已通过草稿">
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -1203,9 +1281,9 @@ function SchedulePage({
           }}
         >
           <label>
-            Approved draft
+            已通过草稿
             <select value={form.draft_id} onChange={(event) => onChange({ ...form, draft_id: event.target.value })}>
-              <option value="">Choose draft</option>
+              <option value="">选择草稿</option>
               {approvedDrafts.map((draft) => (
                 <option key={draft.id} value={draft.id}>
                   {draft.title}
@@ -1214,7 +1292,7 @@ function SchedulePage({
             </select>
           </label>
           <label>
-            Scheduled time
+            排期时间
             <input
               type="datetime-local"
               value={form.scheduled_at}
@@ -1222,11 +1300,11 @@ function SchedulePage({
             />
           </label>
           <button className="primary-button" disabled={isBusy || !form.draft_id || !form.scheduled_at} type="submit">
-            Schedule
+            保存排期
           </button>
         </form>
       </Panel>
-      <Panel title="Schedule Queue">
+      <Panel title="排期队列">
         <div className="record-stack">
           {publishTasks.length ? (
             publishTasks.map((task) => (
@@ -1235,11 +1313,11 @@ function SchedulePage({
                   <h3>{accountMap.get(task.account_id) || task.account_id}</h3>
                   <p>{formatDate(task.scheduled_at)}</p>
                 </div>
-                <span className={`badge ${badgeTone(task.status)}`}>{task.status}</span>
+                <span className={`badge ${badgeTone(task.status)}`}>{statusLabel(task.status)}</span>
               </article>
             ))
           ) : (
-            <div className="empty-state">No scheduled tasks.</div>
+            <div className="empty-state">暂无排期。</div>
           )}
         </div>
       </Panel>
@@ -1249,23 +1327,23 @@ function SchedulePage({
 
 function CompliancePage({ riskLogs }: { riskLogs: RiskLog[] }) {
   return (
-    <Panel title="Compliance Risk Logs">
+    <Panel title="合规风险日志">
       <div className="risk-grid">
         {riskLogs.length ? (
           riskLogs.map((risk) => (
             <article className="risk-card" key={risk.id}>
               <div>
-                <span className={`badge ${badgeTone(risk.severity)}`}>{risk.severity}</span>
+                <span className={`badge ${badgeTone(risk.severity)}`}>{statusLabel(risk.severity)}</span>
                 <h3>{risk.risk_type}</h3>
                 <p>{risk.message}</p>
               </div>
               <small>
-                {risk.account_id || "Global"} / {risk.related_entity_type || "record"} / {formatDate(risk.created_at)}
+                {risk.account_id || "全局"} / {risk.related_entity_type || "记录"} / {formatDate(risk.created_at)}
               </small>
             </article>
           ))
         ) : (
-          <div className="empty-state">No risk logs yet.</div>
+          <div className="empty-state">暂无风险日志。</div>
         )}
       </div>
     </Panel>
@@ -1320,7 +1398,7 @@ function PublishRecordsPage({
 
   return (
     <section className="page-grid">
-      <Panel title="Manual Publish Result">
+      <Panel title="人工发布结果">
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -1330,12 +1408,12 @@ function PublishRecordsPage({
         >
           <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
           <label>
-            Draft
+            草稿
             <select
               value={publishForm.draft_id}
               onChange={(event) => onPublishChange({ ...publishForm, draft_id: event.target.value })}
             >
-              <option value="">Choose draft</option>
+              <option value="">选择草稿</option>
               {selectedDrafts.map((draft) => (
                 <option key={draft.id} value={draft.id}>
                   {draft.title}
@@ -1344,7 +1422,7 @@ function PublishRecordsPage({
             </select>
           </label>
           <label>
-            Published time
+            发布时间
             <input
               type="datetime-local"
               value={publishForm.published_at}
@@ -1352,7 +1430,7 @@ function PublishRecordsPage({
             />
           </label>
           <label>
-            Note URL
+            笔记链接
             <input
               value={publishForm.note_url}
               onChange={(event) => onPublishChange({ ...publishForm, note_url: event.target.value })}
@@ -1364,11 +1442,11 @@ function PublishRecordsPage({
             disabled={isBusy || !publishForm.draft_id || !publishForm.published_at}
             type="submit"
           >
-            Save publish record
+            保存发布记录
           </button>
         </form>
       </Panel>
-      <Panel title="Analytics Entry">
+      <Panel title="数据录入">
         <form
           className="form-grid two-column"
           onSubmit={(event) => {
@@ -1377,14 +1455,14 @@ function PublishRecordsPage({
           }}
         >
           <label>
-            Publish record
+            发布记录
             <select
               value={analyticsForm.publish_log_id}
               onChange={(event) =>
                 onAnalyticsChange({ ...analyticsForm, publish_log_id: event.target.value })
               }
             >
-              <option value="">Choose record</option>
+              <option value="">选择记录</option>
               {publishLogs.map((log) => (
                 <option key={log.id} value={log.id}>
                   {accountMap.get(log.account_id) || log.account_id} / {formatDate(log.published_at)}
@@ -1393,27 +1471,27 @@ function PublishRecordsPage({
             </select>
           </label>
           <label>
-            Recorded time
+            记录时间
             <input
               type="datetime-local"
               value={analyticsForm.recorded_at}
               onChange={(event) => onAnalyticsChange({ ...analyticsForm, recorded_at: event.target.value })}
             />
           </label>
-          <NumberField form={analyticsForm} label="Views" name="views" onChange={onAnalyticsChange} />
-          <NumberField form={analyticsForm} label="Likes" name="likes" onChange={onAnalyticsChange} />
-          <NumberField form={analyticsForm} label="Favorites" name="favorites" onChange={onAnalyticsChange} />
-          <NumberField form={analyticsForm} label="Comments" name="comments" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="浏览量" name="views" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="点赞" name="likes" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="收藏" name="favorites" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="评论" name="comments" onChange={onAnalyticsChange} />
           <button
             className="primary-button"
             disabled={isBusy || !analyticsForm.publish_log_id || !analyticsForm.recorded_at}
             type="submit"
           >
-            Save analytics
+            保存数据
           </button>
         </form>
       </Panel>
-      <Panel title="Publish Records">
+      <Panel title="发布记录">
         <div className="record-stack">
           {publishLogs.length ? (
             publishLogs.map((log) => (
@@ -1423,34 +1501,34 @@ function PublishRecordsPage({
                   <p>{formatDate(log.published_at)}</p>
                   {log.note_url ? (
                     <a href={log.note_url} rel="noreferrer" target="_blank">
-                      Open note
+                      打开笔记
                     </a>
                   ) : null}
                 </div>
-                <span className="badge green">manual</span>
+                <span className="badge green">人工</span>
               </article>
             ))
           ) : (
-            <div className="empty-state">No publish records yet.</div>
+            <div className="empty-state">暂无发布记录。</div>
           )}
         </div>
       </Panel>
-      <Panel title="Analytics Records">
+      <Panel title="数据记录">
         <div className="record-stack">
           {analyticsRecords.length ? (
             analyticsRecords.map((record) => (
               <article className="record-card compact" key={record.id}>
                 <div>
-                  <h3>{record.views.toLocaleString()} views</h3>
+                  <h3>{record.views.toLocaleString()} 浏览</h3>
                   <p>
-                    {record.likes} likes / {record.favorites} favorites / {record.comments} comments
+                    {record.likes} 点赞 / {record.favorites} 收藏 / {record.comments} 评论
                   </p>
                 </div>
                 <span className="badge blue">{formatDate(record.recorded_at)}</span>
               </article>
             ))
           ) : (
-            <div className="empty-state">No analytics records yet.</div>
+            <div className="empty-state">暂无数据记录。</div>
           )}
         </div>
       </Panel>
@@ -1508,19 +1586,19 @@ function SettingsPage({
   onRefresh: () => void;
 }) {
   return (
-    <Panel title="Local Desktop Settings">
+    <Panel title="本地桌面设置">
       <div className="form-grid">
         <label>
-          API base URL
+          后端地址
           <input value={apiBaseUrl} onChange={(event) => onApiBaseUrlChange(event.target.value)} />
         </label>
         <div className="settings-row">
           <div>
-            <strong>Backend health</strong>
-            <span>{health ? `${health.service}: ${health.status}` : "Not reachable"}</span>
+            <strong>后端状态</strong>
+            <span>{health ? `${health.service}: ${health.status}` : "未连接"}</span>
           </div>
           <button className="secondary-button" onClick={onRefresh} type="button">
-            Refresh
+            刷新
           </button>
         </div>
       </div>
@@ -1539,9 +1617,9 @@ function AccountSelect({
 }) {
   return (
     <label>
-      Account
+      账号
       <select value={selectedAccountId} onChange={(event) => onSelect(event.target.value)}>
-        <option value="">Choose account</option>
+        <option value="">选择账号</option>
         {accounts.map((account) => (
           <option key={account.account_id} value={account.account_id}>
             {account.display_name}
@@ -1580,7 +1658,7 @@ function RecordList({
                 <h3>{item.title}</h3>
                 <p>{item.meta}</p>
               </div>
-              <span className={`badge ${badgeTone(item.status)}`}>{item.status}</span>
+              <span className={`badge ${badgeTone(item.status)}`}>{statusLabel(item.status)}</span>
             </article>
           ))
         ) : (
