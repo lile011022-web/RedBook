@@ -1,8 +1,15 @@
 const API_BASE_URL_KEY = "redbook.apiBaseUrl";
 const TOKEN_KEY = "redbook.token";
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:8010";
+const OLD_DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
 export function getApiBaseUrl() {
-  return localStorage.getItem(API_BASE_URL_KEY) || "http://127.0.0.1:8000";
+  const storedValue = localStorage.getItem(API_BASE_URL_KEY);
+  if (!storedValue || storedValue === OLD_DEFAULT_API_BASE_URL) {
+    localStorage.setItem(API_BASE_URL_KEY, DEFAULT_API_BASE_URL);
+    return DEFAULT_API_BASE_URL;
+  }
+  return storedValue;
 }
 
 export function setApiBaseUrl(value: string) {

@@ -126,6 +126,7 @@ const navItems = [
 ];
 
 const CREATOR_URL = "https://creator.xiaohongshu.com/";
+const EXPECTED_BACKEND_SERVICE = "redbook-api";
 
 const emptyPersonaForm: PersonaForm = {
   positioning: "",
@@ -320,6 +321,15 @@ function App() {
   const loadHealth = useCallback(async () => {
     try {
       const response = await apiRequest<HealthResponse>("/health");
+      if (response.service !== EXPECTED_BACKEND_SERVICE) {
+        setHealth(null);
+        setError(
+          `The API base URL is responding, but it is not RedBook API. Current service: ${
+            response.service || "unknown"
+          }. Please update the API base URL to the RedBook backend, such as http://127.0.0.1:8010.`
+        );
+        return;
+      }
       setHealth(response);
     } catch {
       setHealth(null);
@@ -411,6 +421,14 @@ function App() {
     setError("");
     setIsBusy(true);
     try {
+      const healthResponse = await apiRequest<HealthResponse>("/health");
+      if (healthResponse.service !== EXPECTED_BACKEND_SERVICE) {
+        throw new Error(
+          `The API base URL is not RedBook API. Current service: ${
+            healthResponse.service || "unknown"
+          }. Please start RedBook backend at this URL.`
+        );
+      }
       if (mode === "register") {
         await apiRequest<{ id: string; email: string }>("/auth/register", {
           body: JSON.stringify({ email, password }),

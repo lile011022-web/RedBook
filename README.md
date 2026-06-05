@@ -43,13 +43,13 @@ S3_ENDPOINT_URL=http://minio:9000
 cd apps/api
 python -m pip install -e ".[dev]"
 python -m pytest -q
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --port 8010
 ```
 
 Health check:
 
 ```text
-GET http://127.0.0.1:8000/health
+GET http://127.0.0.1:8010/health
 ```
 
 ## Desktop Development
@@ -103,6 +103,10 @@ npm run desktop:package:win
 ```
 
 Generated artifacts are written under `apps/desktop/release` and are ignored by Git. The build also creates `apps/desktop/dist` and `apps/desktop/dist-electron`, which are ignored.
+
+## User Guide
+
+See `docs/user-guide.md` for installation, startup, daily workflow, and troubleshooting instructions.
 
 ## Verification Checklist
 
