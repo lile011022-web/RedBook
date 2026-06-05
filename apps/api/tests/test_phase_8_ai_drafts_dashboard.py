@@ -106,6 +106,28 @@ def test_ai_generate_draft_options_saves_multiple_reviewable_drafts(monkeypatch)
     assert payload[1]["title"] == "合肥好物清单"
 
 
+def test_ai_generate_draft_options_guides_operator_when_persona_missing(monkeypatch):
+    monkeypatch.setattr("app.api.ai.resolve_openai_api_key", lambda db: "test-key")
+
+    client = TestClient(app)
+    headers = auth_headers(client)
+    account = client.post("/accounts", headers=headers, json={"display_name": "未设置人设账号"})
+    assert account.status_code == 201
+
+    response = client.post(
+        "/ai/generate-draft-options",
+        headers=headers,
+        json={
+            "account_id": account.json()["account_id"],
+            "topic": "基于当前账号人设生成小红书文案",
+            "count": 1,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "请先到「人设」页面保存该账号的人设。"
+
+
 def test_ai_analyze_dashboard_returns_structured_recommendations(monkeypatch):
     from app.api import ai
 

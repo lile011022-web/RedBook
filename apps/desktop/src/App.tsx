@@ -451,6 +451,7 @@ function App() {
   const [dashboardAnalysis, setDashboardAnalysis] = useState<AiDashboardAnalysis | null>(null);
   const [riskLogs, setRiskLogs] = useState<RiskLog[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedAccountHasPersona, setSelectedAccountHasPersona] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [personaForm, setPersonaForm] = useState<PersonaForm>(emptyPersonaForm);
   const [draftForm, setDraftForm] = useState<DraftForm>(emptyDraftForm);
@@ -562,11 +563,13 @@ function App() {
   useEffect(() => {
     if (!selectedAccountId || !isAuthenticated) {
       setPersonaForm(emptyPersonaForm);
+      setSelectedAccountHasPersona(false);
       return;
     }
 
     apiRequest<Persona>(`/accounts/${selectedAccountId}/persona`)
       .then((persona) => {
+        setSelectedAccountHasPersona(true);
         setPersonaForm({
           positioning: persona.positioning,
           content_direction: persona.content_direction,
@@ -575,7 +578,10 @@ function App() {
           publish_frequency: persona.publish_frequency
         });
       })
-      .catch(() => setPersonaForm(emptyPersonaForm));
+      .catch(() => {
+        setSelectedAccountHasPersona(false);
+        setPersonaForm(emptyPersonaForm);
+      });
   }, [isAuthenticated, selectedAccountId]);
 
   useEffect(() => {
@@ -865,6 +871,7 @@ function App() {
             accounts={accounts}
             drafts={drafts}
             form={draftForm}
+            hasPersona={selectedAccountHasPersona}
             isBusy={isBusy}
             selectedAccountId={selectedAccountId}
             onChange={setDraftForm}
@@ -885,6 +892,9 @@ function App() {
             onSelect={setSelectedAccountId}
             onSubmitAi={() =>
               runMutation(async () => {
+                if (!selectedAccountHasPersona) {
+                  throw new Error("请先到「人设」页面保存该账号的人设，再生成文案。");
+                }
                 await apiRequest<Draft[]>("/ai/generate-draft-options", {
                   body: JSON.stringify({
                     account_id: selectedAccountId,
@@ -1441,6 +1451,7 @@ function DraftsPage({
   accounts,
   drafts,
   form,
+  hasPersona,
   isBusy,
   selectedAccountId,
   onChange,
@@ -1453,6 +1464,7 @@ function DraftsPage({
   accounts: Account[];
   drafts: Draft[];
   form: DraftForm;
+  hasPersona: boolean;
   isBusy: boolean;
   selectedAccountId: string;
   onChange: (value: DraftForm) => void;
@@ -1473,6 +1485,9 @@ function DraftsPage({
           }}
         >
           <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
+          {!hasPersona && selectedAccountId ? (
+            <div className="alert compact-alert">请先到「人设」页面保存该账号的人设，再生成文案。</div>
+          ) : null}
           <label>
             生成数量
             <select value={form.count} onChange={(event) => onChange({ ...form, count: event.target.value })}>
@@ -1491,7 +1506,7 @@ function DraftsPage({
               placeholder="不填也可以直接按当前账号人设生成。也可以写：更口语化、偏转化、直播预告方向。"
             />
           </label>
-          <button className="primary-button" disabled={isBusy || !selectedAccountId} type="submit">
+          <button className="primary-button" disabled={isBusy || !selectedAccountId || !hasPersona} type="submit">
             {isBusy ? "正在生成..." : "生成文案"}
           </button>
         </form>

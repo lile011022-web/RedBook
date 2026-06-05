@@ -413,6 +413,11 @@ a {
   font-weight: 700;
 }
 
+.compact-alert {
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
 .record-stack,
 .risk-grid,
 .media-grid,

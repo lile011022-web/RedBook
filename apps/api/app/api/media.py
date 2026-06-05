@@ -175,15 +175,15 @@ async def create_media_ideas(
 ) -> AiMediaIdeaResponse:
     account = db.query(Account).filter(Account.account_id == account_id).first()
     if not account:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
 
     persona = db.query(Persona).filter(Persona.account_id == account_id).first()
     if not persona:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="请先到「人设」页面保存该账号的人设。")
 
     api_key = resolve_openai_api_key(db)
     if not api_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OpenAI API key is not configured.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OpenAI API Key 未配置。请先在后端环境变量或设置中配置。")
 
     prompt = build_media_ideas_prompt(persona=persona, goal=request.goal)
     ideas = await generate_media_ideas(api_key=api_key, prompt=prompt)
@@ -208,15 +208,15 @@ async def generate_media_image(
 ) -> MediaAsset:
     account = db.query(Account).filter(Account.account_id == account_id).first()
     if not account:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
 
     persona = db.query(Persona).filter(Persona.account_id == account_id).first()
     if not persona:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="请先到「人设」页面保存该账号的人设。")
 
     api_key = resolve_openai_api_key(db)
     if not api_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OpenAI API key is not configured.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OpenAI API Key 未配置。请先在后端环境变量或设置中配置。")
 
     image_prompt = build_image_generation_prompt(persona=persona, prompt=request.prompt, style=request.style)
     image_content = await generate_image_bytes(api_key=api_key, prompt=image_prompt)

@@ -36,17 +36,17 @@ async def generate_ai_draft(
 ) -> Draft:
     account = db.query(Account).filter(Account.account_id == request.account_id).first()
     if not account:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
 
     persona = db.query(Persona).filter(Persona.account_id == request.account_id).first()
     if not persona:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="请先到「人设」页面保存该账号的人设。")
 
     api_key = resolve_openai_api_key(db)
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OpenAI API key is not configured.",
+            detail="OpenAI API Key 未配置。请先在后端环境变量或设置中配置。",
         )
 
     prompt = build_draft_prompt(
@@ -86,17 +86,17 @@ async def generate_ai_draft_options(
 ) -> list[Draft]:
     account = db.query(Account).filter(Account.account_id == request.account_id).first()
     if not account:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
 
     persona = db.query(Persona).filter(Persona.account_id == request.account_id).first()
     if not persona:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="请先到「人设」页面保存该账号的人设。")
 
     api_key = resolve_openai_api_key(db)
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OpenAI API key is not configured.",
+            detail="OpenAI API Key 未配置。请先在后端环境变量或设置中配置。",
         )
 
     prompt = build_draft_options_prompt(
@@ -112,7 +112,7 @@ async def generate_ai_draft_options(
     if not contents:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="OpenAI returned no draft options.",
+            detail="OpenAI 没有返回可用文案，请稍后重试或调整补充要求。",
         )
 
     drafts = [
@@ -143,17 +143,17 @@ async def analyze_dashboard(
 ) -> AiDashboardAnalysisResponse:
     account = db.query(Account).filter(Account.account_id == request.account_id).first()
     if not account:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
 
     persona = db.query(Persona).filter(Persona.account_id == request.account_id).first()
     if not persona:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="请先到「人设」页面保存该账号的人设。")
 
     api_key = resolve_openai_api_key(db)
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OpenAI API key is not configured.",
+            detail="OpenAI API Key 未配置。请先在后端环境变量或设置中配置。",
         )
 
     records_query = db.query(DashboardRecord).filter(DashboardRecord.account_id == request.account_id)
