@@ -80,3 +80,21 @@ class RiskLogResponse(BaseModel):
     related_entity_type: str | None
     related_entity_id: str | None
     created_at: datetime
+
+
+class MediaAssetCreate(BaseModel):
+    account_id: str
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = "application/octet-stream"
+    sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+class MediaAssetResponse(BaseModel):
+    id: str
+    account_id: str
+    filename: str
+    content_type: str
+    storage_key: str
+    sha256: str | None
+    reused_from_asset_id: str | None
+    created_at: datetime
