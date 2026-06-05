@@ -11,6 +11,14 @@ router = APIRouter(prefix="/drafts", tags=["drafts"])
 ALLOWED_REVIEW_STATUSES = {"needs_review", "approved", "rejected"}
 
 
+@router.get("", response_model=list[DraftResponse])
+def list_drafts(
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> list[Draft]:
+    return db.query(Draft).order_by(Draft.created_at.desc()).all()
+
+
 @router.post("", response_model=DraftResponse, status_code=status.HTTP_201_CREATED)
 def create_draft(
     request: DraftCreate,

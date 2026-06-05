@@ -9,6 +9,23 @@ from app.schemas.business import PersonaResponse, PersonaUpsert
 router = APIRouter(tags=["personas"])
 
 
+@router.get("/accounts/{account_id}/persona", response_model=PersonaResponse)
+def get_persona(
+    account_id: str,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> Persona:
+    account = db.query(Account).filter(Account.account_id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+
+    persona = db.query(Persona).filter(Persona.account_id == account_id).first()
+    if not persona:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found.")
+
+    return persona
+
+
 @router.put("/accounts/{account_id}/persona", response_model=PersonaResponse)
 def upsert_persona(
     account_id: str,
