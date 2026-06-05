@@ -3,17 +3,25 @@ const TOKEN_KEY = "redbook.token";
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:8010";
 const OLD_DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
+function normalizeApiBaseUrl(value: string) {
+  return value.trim().replace(/\/+$/, "");
+}
+
 export function getApiBaseUrl() {
   const storedValue = localStorage.getItem(API_BASE_URL_KEY);
   if (!storedValue || storedValue === OLD_DEFAULT_API_BASE_URL) {
     localStorage.setItem(API_BASE_URL_KEY, DEFAULT_API_BASE_URL);
     return DEFAULT_API_BASE_URL;
   }
-  return storedValue;
+  const normalizedValue = normalizeApiBaseUrl(storedValue);
+  if (normalizedValue !== storedValue) {
+    localStorage.setItem(API_BASE_URL_KEY, normalizedValue);
+  }
+  return normalizedValue;
 }
 
 export function setApiBaseUrl(value: string) {
-  localStorage.setItem(API_BASE_URL_KEY, value);
+  localStorage.setItem(API_BASE_URL_KEY, normalizeApiBaseUrl(value));
 }
 
 export function getToken() {
@@ -47,7 +55,8 @@ async function readError(response: Response) {
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const response = await fetch(`${getApiBaseUrl()}${normalizedPath}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

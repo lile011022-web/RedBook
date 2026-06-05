@@ -210,6 +210,9 @@ const navItems = [
 
 const CREATOR_URL = "https://creator.xiaohongshu.com/";
 const EXPECTED_BACKEND_SERVICE = "redbook-api";
+const REMEMBER_LOGIN_KEY = "redbook.rememberLogin";
+const REMEMBERED_EMAIL_KEY = "redbook.rememberedEmail";
+const REMEMBERED_PASSWORD_KEY = "redbook.rememberedPassword";
 
 const statusLabels: Record<string, string> = {
   active: "启用",
@@ -336,15 +339,16 @@ function AuthScreen({
   error: string;
   isBusy: boolean;
   onApiBaseUrlChange: (value: string) => void;
-  onSubmit: (mode: "login" | "register", email: string, password: string) => Promise<void>;
+  onSubmit: (mode: "login" | "register", email: string, password: string, rememberLogin: boolean) => Promise<void>;
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("operator@example.com");
-  const [password, setPassword] = useState("password123");
+  const [rememberLogin, setRememberLogin] = useState(localStorage.getItem(REMEMBER_LOGIN_KEY) === "true");
+  const [email, setEmail] = useState(localStorage.getItem(REMEMBERED_EMAIL_KEY) || "operator@example.com");
+  const [password, setPassword] = useState(localStorage.getItem(REMEMBERED_PASSWORD_KEY) || "password123");
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    void onSubmit(mode, email, password);
+    void onSubmit(mode, email, password, rememberLogin);
   }
 
   return (
@@ -381,6 +385,14 @@ function AuthScreen({
               onChange={(event) => setPassword(event.target.value)}
               type="password"
             />
+          </label>
+          <label className="checkbox-row">
+            <input
+              checked={rememberLogin}
+              onChange={(event) => setRememberLogin(event.target.checked)}
+              type="checkbox"
+            />
+            记住账号和密码
           </label>
           <div className="segmented">
             <button
@@ -564,7 +576,7 @@ function App() {
     setApiBaseUrl(value);
   }
 
-  async function handleAuth(mode: "login" | "register", email: string, password: string) {
+  async function handleAuth(mode: "login" | "register", email: string, password: string, rememberLogin: boolean) {
     setError("");
     setIsBusy(true);
     try {
@@ -587,6 +599,14 @@ function App() {
         method: "POST"
       });
       setToken(token.access_token);
+      localStorage.setItem(REMEMBER_LOGIN_KEY, String(rememberLogin));
+      if (rememberLogin) {
+        localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+        localStorage.setItem(REMEMBERED_PASSWORD_KEY, password);
+      } else {
+        localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+        localStorage.removeItem(REMEMBERED_PASSWORD_KEY);
+      }
       setIsAuthenticated(true);
       await loadData();
     } catch (requestError) {
@@ -733,7 +753,10 @@ function App() {
             accountName={accountName}
             accounts={accounts}
             isBusy={isBusy}
-            onAccountNameChange={setAccountName}
+            onAccountNameChange={(value) => {
+              setError("");
+              setAccountName(value);
+            }}
             onClearXhsSession={clearAccountWorkbenchSession}
             onCreate={() =>
               runMutation(async () => {
@@ -1097,7 +1120,7 @@ function AccountsPage({
           </label>
           {!accountName.trim() ? <p className="form-hint">先输入账号名称，按钮才会启用。</p> : null}
           <button className="primary-button" disabled={isBusy || !accountName.trim()} type="submit">
-            添加账号
+            {isBusy ? "正在添加..." : "添加账号"}
           </button>
         </form>
       </Panel>

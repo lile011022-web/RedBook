@@ -332,6 +332,17 @@ a {
   font-weight: 700;
 }
 
+.form-grid .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.form-grid .checkbox-row input {
+  width: 16px;
+  height: 16px;
+}
+
 .form-hint {
   margin: -2px 0 0;
   color: #86868b;
