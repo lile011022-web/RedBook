@@ -1,0 +1,12 @@
+{
+  "name": "redbook",
+  "private": true,
+  "workspaces": [
+    "apps/desktop",
+    "packages/shared"
+  ],
+  "scripts": {
+    "desktop:build": "npm --workspace apps/desktop run build",
+    "desktop:package:win": "npm --workspace apps/desktop run electron:build"
+  }
+}
