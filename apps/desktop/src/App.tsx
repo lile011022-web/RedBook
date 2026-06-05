@@ -490,22 +490,13 @@ function App() {
       return;
     }
     try {
-      const [
-        accountList,
-        draftList,
-        taskList,
-        riskList,
-        publishLogList,
-        analyticsList,
-        dashboardList
-      ] = await Promise.all([
+      const [accountList, draftList, taskList, riskList, publishLogList, analyticsList] = await Promise.all([
         apiRequest<Account[]>("/accounts"),
         apiRequest<Draft[]>("/drafts"),
         apiRequest<PublishTask[]>("/publish-tasks"),
         apiRequest<RiskLog[]>("/risk-logs"),
         apiRequest<PublishLog[]>("/publish-logs"),
-        apiRequest<AnalyticsRecord[]>("/analytics-records"),
-        apiRequest<DashboardRecord[]>("/dashboard-records")
+        apiRequest<AnalyticsRecord[]>("/analytics-records")
       ]);
       setAccounts(accountList);
       setDrafts(draftList);
@@ -513,7 +504,13 @@ function App() {
       setRiskLogs(riskList);
       setPublishLogs(publishLogList);
       setAnalyticsRecords(analyticsList);
-      setDashboardRecords(dashboardList);
+      try {
+        const dashboardList = await apiRequest<DashboardRecord[]>("/dashboard-records");
+        setDashboardRecords(dashboardList);
+      } catch (dashboardError) {
+        setDashboardRecords([]);
+        console.info("创作中心总览接口暂不可用，基础功能继续运行。", dashboardError);
+      }
       if (!selectedAccountId && accountList[0]) {
         setSelectedAccountId(accountList[0].account_id);
       }
