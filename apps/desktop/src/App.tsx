@@ -9,7 +9,6 @@ type HealthResponse = {
 
 const navItems = [
   "Dashboard",
-  "RedBook Conversation",
   "Accounts",
   "Personas",
   "Media",
@@ -51,10 +50,6 @@ function App() {
       return "Configure API connection details when the next stage adds persisted settings.";
     }
 
-    if (activePage === "RedBook Conversation") {
-      return "Create a guided RedBook content conversation for compliant draft preparation.";
-    }
-
     return `${activePage} workspace placeholder for the next MVP stage.`;
   }, [activePage]);
 
@@ -68,20 +63,6 @@ function App() {
             <span>Compliance Ops</span>
           </div>
         </div>
-
-        <button
-          className="create-conversation-button"
-          onClick={() => setActivePage("RedBook Conversation")}
-          type="button"
-        >
-          <span className="create-conversation-icon" aria-hidden="true">
-            +
-          </span>
-          <span>
-            <strong>创建对话</strong>
-            <small>RedBook content chat</small>
-          </span>
-        </button>
 
         <nav className="nav-list">
           {navItems.map((item) => (
@@ -141,11 +122,7 @@ function App() {
             </div>
             <div className="empty-state">
               <strong>No records yet</strong>
-              <span>
-                {activePage === "RedBook Conversation"
-                  ? "Click 创建对话 to prepare a new compliant content session."
-                  : "Phase 0 keeps this area intentionally empty."}
-              </span>
+              <span>Phase 0 keeps this area intentionally empty.</span>
             </div>
           </section>
         )}

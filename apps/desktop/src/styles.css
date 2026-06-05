@@ -68,54 +68,6 @@ button {
   font-size: 13px;
 }
 
-.create-conversation-button {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px;
-  border: 1px solid rgba(191, 45, 69, 0.16);
-  border-radius: 18px;
-  color: #1d1d1f;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 248, 0.9)),
-    #ffffff;
-  box-shadow: 0 16px 34px rgba(191, 45, 69, 0.12);
-  text-align: left;
-  cursor: pointer;
-}
-
-.create-conversation-button:hover {
-  border-color: rgba(191, 45, 69, 0.26);
-  box-shadow: 0 18px 38px rgba(191, 45, 69, 0.16);
-  transform: translateY(-1px);
-}
-
-.create-conversation-icon {
-  display: grid;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 12px;
-  color: #ffffff;
-  background: #bf2d45;
-  font-size: 24px;
-  line-height: 1;
-  box-shadow: 0 10px 20px rgba(191, 45, 69, 0.24);
-}
-
-.create-conversation-button strong,
-.create-conversation-button small {
-  display: block;
-}
-
-.create-conversation-button small {
-  margin-top: 2px;
-  color: #6e6e73;
-  font-size: 12px;
-}
-
 .nav-list {
   display: grid;
   gap: 6px;
