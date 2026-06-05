@@ -98,3 +98,54 @@ class MediaAssetResponse(BaseModel):
     sha256: str | None
     reused_from_asset_id: str | None
     created_at: datetime
+
+
+class PublishLogCreate(BaseModel):
+    account_id: str
+    draft_id: str
+    published_at: datetime
+    note_url: str = ""
+
+
+class PublishLogResponse(BaseModel):
+    id: str
+    account_id: str
+    draft_id: str
+    published_at: datetime
+    note_url: str
+    created_at: datetime
+
+
+class AnalyticsRecordCreate(BaseModel):
+    account_id: str
+    publish_log_id: str
+    views: int = Field(default=0, ge=0)
+    likes: int = Field(default=0, ge=0)
+    favorites: int = Field(default=0, ge=0)
+    comments: int = Field(default=0, ge=0)
+    recorded_at: datetime
+
+
+class AnalyticsRecordResponse(BaseModel):
+    id: str
+    account_id: str
+    publish_log_id: str
+    views: int
+    likes: int
+    favorites: int
+    comments: int
+    recorded_at: datetime
+    created_at: datetime
+
+
+class SettingUpsert(BaseModel):
+    value: str = ""
+    is_secret: bool = False
+
+
+class SettingResponse(BaseModel):
+    id: str
+    key: str
+    value: str
+    is_secret: bool
+    created_at: datetime
