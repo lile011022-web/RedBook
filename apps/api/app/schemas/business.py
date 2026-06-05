@@ -149,3 +149,8 @@ class SettingResponse(BaseModel):
     value: str
     is_secret: bool
     created_at: datetime
+
+
+class AiDraftGenerateRequest(BaseModel):
+    account_id: str
+    topic: str = Field(min_length=1, max_length=255)

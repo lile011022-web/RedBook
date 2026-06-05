@@ -5,6 +5,7 @@ from app import models as models  # noqa: F401
 from app.api import (
     accounts,
     analytics,
+    ai,
     auth,
     drafts,
     health,
@@ -34,6 +35,7 @@ app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(personas.router)
 app.include_router(drafts.router)
+app.include_router(ai.router)
 app.include_router(schedule.router)
 app.include_router(media.router)
 app.include_router(publish_logs.router)
