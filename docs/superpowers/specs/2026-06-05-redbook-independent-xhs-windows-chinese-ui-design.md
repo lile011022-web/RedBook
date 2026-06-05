@@ -1,102 +1,108 @@
-# RedBook Independent XHS Windows And Chinese UI Design
+# RedBook 独立小红书窗口与中文界面设计
 
-## Goal
+## 目标
 
-Add a compliant multi-account Xiaohongshu working mode to RedBook: each RedBook account can open its own independent Xiaohongshu official creator window, keep a separate persistent browser session, and continue manual publishing work without mixing login states. Also localize the desktop app user-facing text into Chinese so operators can use it naturally.
+为 RedBook 增加合规的多账号小红书工作模式：每个 RedBook 账号都可以打开一个独立的小红书官方创作者中心窗口，使用单独的持久浏览器会话，避免不同账号的登录状态混在一起。同时，将桌面软件所有用户可见文字改为中文，方便实际运营人员使用。
 
-## Compliance Boundary
+## 合规边界
 
-The feature must support manual login and manual publishing only.
+这个功能只支持人工登录和人工发布。
 
-Allowed:
+允许做：
 
-- Open the official Xiaohongshu creator/publishing page in an app-managed window.
-- Use a separate persistent Electron session partition per RedBook account.
-- Let the operator manually log in, solve any official verification, and publish manually.
-- Keep cookies, local storage, cache, and other normal browser session data for that account partition.
-- Provide a manual button to clear one account's local Xiaohongshu session.
-- Copy draft title/body/tags/cover text for the operator to paste manually.
+- 在软件内打开小红书官方创作者中心或发布页面。
+- 每个 RedBook 账号使用独立的 Electron 持久会话分区。
+- 由操作员手动登录、手动完成验证码或官方验证、手动发布内容。
+- 为每个账号保存正常浏览器会话数据，例如 Cookie、LocalStorage、缓存等。
+- 提供手动按钮，用于清除某一个账号的小红书登录状态。
+- 提供草稿标题、正文、标签、封面文案的复制按钮，方便人工粘贴。
 
-Not allowed:
+不允许做：
 
-- Automatic login.
-- Automatic publishing.
-- Automatic clicking, form filling, scraping, likes, comments, favorites, or private messages.
-- Proxy switching, device fingerprint spoofing, risk-control bypass, or batch-control behavior.
-- Reading or storing Xiaohongshu account passwords in RedBook.
+- 自动登录。
+- 自动发布。
+- 自动点击、自动填表、自动采集、自动点赞、自动评论、自动收藏、自动私信。
+- 代理切换、设备指纹伪装、绕过风控、群控操作。
+- 在 RedBook 中读取或保存小红书账号密码。
 
-## Product Behavior
+## 产品行为
 
-### Account Workbench Window
+### 账号工作台窗口
 
-On the `Accounts` page, each account card gets:
+在 `账号` 页面，每个账号卡片增加两个按钮：
 
 - `打开小红书工作台`
 - `清除登录状态`
 
-Clicking `打开小红书工作台` opens a separate Electron `BrowserWindow` for that account. The window title uses the account display name, for example:
+点击 `打开小红书工作台` 后，软件为该账号打开一个独立的 Electron 窗口。窗口标题使用账号显示名，例如：
 
 ```text
 小红书工作台 - 品牌账号A
 ```
 
-The window loads:
+窗口打开的官方地址为：
 
 ```text
 https://creator.xiaohongshu.com/
 ```
 
-If the operator is not logged in, Xiaohongshu shows its own login page. The operator logs in manually. If already logged in, the official page should remain logged in as long as Xiaohongshu accepts the saved session.
+如果该账号还没有登录，小红书官方页面会显示自己的登录界面，操作员手动登录。如果已经登录，只要小红书官方仍认可这个登录态，窗口会继续保持登录。
 
-### Persistent Session Isolation
+### 持久会话隔离
 
-Each account gets a stable Electron session partition:
+每个账号使用稳定的 Electron 会话分区：
 
 ```text
 persist:redbook-xhs-{account_id}
 ```
 
-This means:
+这样可以实现：
 
-- Account A and Account B do not share Xiaohongshu cookies or local storage.
-- Closing and reopening the account workbench reuses the same partition.
-- Login state is kept by Electron's persistent session data.
-- RedBook does not control Xiaohongshu's server-side session expiry.
+- 账号 A 和账号 B 不共享小红书 Cookie 或 LocalStorage。
+- 关闭账号工作台后，下次打开仍然复用同一个会话分区。
+- 登录态由 Electron 的持久会话数据保存。
+- RedBook 不控制小红书服务器端的登录有效期。
 
-If Xiaohongshu invalidates a session, the operator must log in manually again. RedBook must not attempt to bypass that requirement.
+如果小红书官方主动让登录态失效，操作员需要重新手动登录。RedBook 不会尝试绕过这个要求。
 
-### Clearing Login State
+### 清除登录状态
 
-`清除登录状态` clears browser storage for that account's partition only:
+`清除登录状态` 只清除当前账号对应会话分区的数据，包括：
 
-- cookies
-- storage data
-- cache where available through Electron session APIs
+- Cookie
+- 存储数据
+- Electron session API 支持清理的缓存
 
-It must not affect other RedBook accounts.
+它不能影响其他 RedBook 账号。
 
-The UI should ask for confirmation before clearing:
+清除前需要弹出确认：
 
 ```text
 确认清除该账号的小红书登录状态？清除后需要重新手动登录。
 ```
 
-### Desktop App Chinese Localization
+清除成功后显示：
 
-All visible RedBook desktop UI text should be converted to Chinese, including:
+```text
+已清除该账号的小红书登录状态。
+```
 
-- Login/register screen.
-- Navigation items.
-- Page titles.
-- Form labels.
-- Buttons.
-- Empty states.
-- Status labels where locally generated.
-- Error messages created by the desktop app.
-- Settings and backend health copy.
-- Compliance and publishing helper copy.
+### 中文界面
 
-Backend enum/status values can remain stored as English internally, but the desktop display should map common values to Chinese labels. Examples:
+桌面软件所有用户可见文字都改成中文，包括：
+
+- 登录/注册页面。
+- 左侧导航。
+- 页面标题。
+- 表单标签。
+- 按钮。
+- 空状态文案。
+- 软件自己生成的状态标签。
+- 软件自己生成的错误提示。
+- 设置页面和后端健康状态文案。
+- 合规检查和人工发布辅助文案。
+
+后端枚举值和数据库字段可以继续使用英文保存，但桌面端展示时需要映射成中文。例如：
 
 - `active` -> `启用`
 - `needs_review` -> `待审核`
@@ -107,35 +113,35 @@ Backend enum/status values can remain stored as English internally, but the desk
 - `warning` -> `提醒`
 - `manual` -> `人工`
 
-## Architecture
+## 技术架构
 
-### Electron Main Process
+### Electron 主进程
 
-Add IPC handlers in `apps/desktop/electron/main.ts`:
+在 `apps/desktop/electron/main.ts` 中增加 IPC 处理：
 
 - `openXhsWorkbench(accountId, displayName)`
 - `clearXhsSession(accountId)`
 
-The main process owns Xiaohongshu windows because it can create Electron `BrowserWindow` instances with account-specific sessions.
+小红书窗口由 Electron 主进程创建，因为只有主进程能创建带独立会话分区的 `BrowserWindow`。
 
-Window creation:
+打开窗口时：
 
-- Use `partition: persist:redbook-xhs-${safeAccountId}` in `webPreferences`.
-- Use `contextIsolation: true`.
-- Use `nodeIntegration: false`.
-- Do not attach preload automation for the Xiaohongshu page.
-- Open official creator URL only.
+- `webPreferences.partition` 使用 `persist:redbook-xhs-${safeAccountId}`。
+- 保持 `contextIsolation: true`。
+- 保持 `nodeIntegration: false`。
+- 不给小红书页面注入自动化 preload。
+- 只打开官方创作者中心地址。
 
-Session clearing:
+清除登录状态时：
 
-- Resolve the same partition.
-- Clear storage data for that partition.
-- Clear cache if supported.
-- Return success/failure to the renderer.
+- 找到同一个账号对应的 session partition。
+- 清除该 partition 的存储数据。
+- 如果 Electron 支持，也清除该 partition 的缓存。
+- 将成功或失败结果返回给前端。
 
 ### Electron Preload
 
-Expose a minimal safe bridge:
+通过安全桥接暴露最小能力：
 
 ```ts
 window.redbook.openXhsWorkbench(accountId, displayName)
@@ -143,22 +149,22 @@ window.redbook.clearXhsSession(accountId)
 window.redbook.notifyPublishDue(message)
 ```
 
-No browser automation methods are exposed.
+不暴露任何浏览器自动化能力。
 
-### React Renderer
+### React 前端
 
-The `Accounts` page calls the bridge methods from account cards.
+`账号` 页面在账号卡片中调用这些桥接方法。
 
-Renderer responsibilities:
+前端负责：
 
-- Show Chinese buttons.
-- Ask confirmation before clearing session.
-- Show success/error messages returned from IPC.
-- Keep existing API-driven account records unchanged.
+- 显示中文按钮。
+- 清除登录状态前弹出确认。
+- 显示 IPC 返回的成功或错误提示。
+- 保持现有账号 API 数据逻辑不变。
 
-### Types
+### 类型声明
 
-Add a global declaration for the bridge so TypeScript can type-check usage:
+增加全局类型声明，让 TypeScript 能检查桥接方法：
 
 ```ts
 interface Window {
@@ -170,62 +176,63 @@ interface Window {
 }
 ```
 
-## Data Flow
+## 数据流程
 
-1. Operator creates RedBook account record.
-2. Operator clicks `打开小红书工作台`.
-3. Renderer sends account ID and display name to Electron main process.
-4. Main process opens a BrowserWindow with partition `persist:redbook-xhs-{account_id}`.
-5. Operator manually logs in on official Xiaohongshu page.
-6. Electron persists the official page's normal browser session data.
-7. Later, operator opens the same account workbench and reuses the same session unless Xiaohongshu invalidated it.
+1. 操作员在 RedBook 中创建账号档案。
+2. 操作员点击 `打开小红书工作台`。
+3. 前端把账号 ID 和账号显示名发送给 Electron 主进程。
+4. 主进程使用 `persist:redbook-xhs-{account_id}` 创建独立窗口。
+5. 操作员在官方小红书页面手动登录。
+6. Electron 保存该官方页面的正常浏览器会话数据。
+7. 下次打开同一账号工作台时，复用同一个会话分区。
+8. 如果小红书官方仍认可登录态，则保持登录；如果官方要求重新登录，操作员手动登录。
 
-## Error Handling
+## 错误处理
 
-- If the desktop app runs in a browser without Electron bridge, show: `当前环境不支持小红书独立窗口，请使用桌面版。`
-- If account ID is missing, disable the workbench buttons.
-- If the IPC operation fails, show a calm inline alert with the failure message.
-- If session clearing succeeds, show: `已清除该账号的小红书登录状态。`
-- If Xiaohongshu logs the user out, RedBook should not treat it as an app error; the official page will ask the operator to log in again.
+- 如果当前不是桌面版 Electron 环境，显示：`当前环境不支持小红书独立窗口，请使用桌面版。`
+- 如果账号 ID 缺失，禁用小红书工作台按钮。
+- 如果 IPC 操作失败，在页面中显示温和的错误提示。
+- 如果清除登录状态成功，显示：`已清除该账号的小红书登录状态。`
+- 如果小红书官方让用户退出登录，RedBook 不把它当作软件错误；官方页面会提示操作员重新登录。
 
-## Testing And Verification
+## 测试与验收
 
-Backend:
+后端：
 
-- Existing backend tests should still pass.
+- 现有后端测试继续通过。
 
-Desktop:
+桌面端：
 
-- TypeScript build must pass.
-- Vite build must pass.
-- Electron TypeScript build must pass.
-- Windows package command must pass.
+- TypeScript 检查通过。
+- Vite 构建通过。
+- Electron TypeScript 构建通过。
+- Windows 打包命令通过。
 
-Manual verification:
+人工验收：
 
-- Open two different RedBook accounts.
-- Click `打开小红书工作台` for both.
-- Confirm two independent windows open.
-- Log in manually to different Xiaohongshu accounts.
-- Close and reopen both windows.
-- Confirm each window keeps its own session when Xiaohongshu still considers the session valid.
-- Clear one account's session.
-- Confirm only that account needs to log in again, while the other remains unchanged.
+- 创建两个不同的 RedBook 账号。
+- 分别点击两个账号的 `打开小红书工作台`。
+- 确认打开两个独立窗口。
+- 在两个窗口中分别手动登录不同的小红书账号。
+- 关闭两个窗口后重新打开。
+- 在小红书官方仍认可登录态的情况下，确认两个窗口分别保持自己的登录状态。
+- 清除其中一个账号的登录状态。
+- 确认只有该账号需要重新登录，另一个账号不受影响。
 
-## Scope
+## 范围
 
-In scope:
+本次包含：
 
-- Independent persistent Xiaohongshu windows.
-- Per-account session clearing.
-- Chinese desktop UI text.
-- User guide update for the new workflow.
+- 独立持久小红书窗口。
+- 每个账号单独清除登录状态。
+- 桌面软件中文化。
+- 使用说明更新。
 
-Out of scope:
+本次不包含：
 
-- Browser automation inside Xiaohongshu.
-- Scraping or syncing Xiaohongshu data.
-- Password storage.
-- Proxy/device/fingerprint features.
-- Guaranteed permanent login if Xiaohongshu server invalidates the session.
+- 小红书页面内自动化操作。
+- 小红书数据采集或同步。
+- 小红书密码保存。
+- 代理、设备、指纹相关能力。
+- 保证小红书服务器永远不让登录态失效。
 
