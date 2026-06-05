@@ -15,6 +15,7 @@ class MediaAsset(Base):
     filename: Mapped[str] = mapped_column(String(255))
     content_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream")
     storage_key: Mapped[str] = mapped_column(String(1024))
+    preview_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     reused_from_asset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

@@ -61,6 +61,39 @@ type PublishTask = {
   created_at: string;
 };
 
+type MediaAsset = {
+  id: string;
+  account_id: string;
+  filename: string;
+  content_type: string;
+  storage_key: string;
+  preview_url: string | null;
+  sha256: string | null;
+  reused_from_asset_id: string | null;
+  created_at: string;
+};
+
+type PublishLog = {
+  id: string;
+  account_id: string;
+  draft_id: string;
+  published_at: string;
+  note_url: string;
+  created_at: string;
+};
+
+type AnalyticsRecord = {
+  id: string;
+  account_id: string;
+  publish_log_id: string;
+  views: number;
+  likes: number;
+  favorites: number;
+  comments: number;
+  recorded_at: string;
+  created_at: string;
+};
+
 type RiskLog = {
   id: string;
   account_id: string | null;
@@ -80,7 +113,19 @@ type PersonaForm = {
   publish_frequency: string;
 };
 
-const navItems = ["Dashboard", "Accounts", "Personas", "Drafts", "Schedule", "Compliance", "Settings"];
+const navItems = [
+  "Dashboard",
+  "Accounts",
+  "Personas",
+  "Media",
+  "Drafts",
+  "Schedule",
+  "Compliance",
+  "Publish Records",
+  "Settings"
+];
+
+const CREATOR_URL = "https://creator.xiaohongshu.com/";
 
 const emptyPersonaForm: PersonaForm = {
   positioning: "",
@@ -115,6 +160,20 @@ function tagList(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function AuthScreen({
@@ -210,6 +269,9 @@ function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [publishTasks, setPublishTasks] = useState<PublishTask[]>([]);
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  const [publishLogs, setPublishLogs] = useState<PublishLog[]>([]);
+  const [analyticsRecords, setAnalyticsRecords] = useState<AnalyticsRecord[]>([]);
   const [riskLogs, setRiskLogs] = useState<RiskLog[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [accountName, setAccountName] = useState("");
@@ -224,6 +286,25 @@ function App() {
   const [scheduleForm, setScheduleForm] = useState({
     draft_id: "",
     scheduled_at: ""
+  });
+  const [mediaForm, setMediaForm] = useState({
+    filename: "",
+    content_type: "image/png",
+    preview_url: "",
+    sha256: ""
+  });
+  const [publishForm, setPublishForm] = useState({
+    draft_id: "",
+    published_at: "",
+    note_url: ""
+  });
+  const [analyticsForm, setAnalyticsForm] = useState({
+    publish_log_id: "",
+    views: "0",
+    likes: "0",
+    favorites: "0",
+    comments: "0",
+    recorded_at: ""
   });
 
   const selectedAccount = useMemo(
@@ -250,16 +331,20 @@ function App() {
       return;
     }
     try {
-      const [accountList, draftList, taskList, riskList] = await Promise.all([
+      const [accountList, draftList, taskList, riskList, publishLogList, analyticsList] = await Promise.all([
         apiRequest<Account[]>("/accounts"),
         apiRequest<Draft[]>("/drafts"),
         apiRequest<PublishTask[]>("/publish-tasks"),
-        apiRequest<RiskLog[]>("/risk-logs")
+        apiRequest<RiskLog[]>("/risk-logs"),
+        apiRequest<PublishLog[]>("/publish-logs"),
+        apiRequest<AnalyticsRecord[]>("/analytics-records")
       ]);
       setAccounts(accountList);
       setDrafts(draftList);
       setPublishTasks(taskList);
       setRiskLogs(riskList);
+      setPublishLogs(publishLogList);
+      setAnalyticsRecords(analyticsList);
       if (!selectedAccountId && accountList[0]) {
         setSelectedAccountId(accountList[0].account_id);
       }
@@ -267,6 +352,20 @@ function App() {
       setError(requestError instanceof Error ? requestError.message : "Could not load records.");
     }
   }, [selectedAccountId]);
+
+  const loadMedia = useCallback(async (accountId: string) => {
+    if (!accountId || !getToken()) {
+      setMediaAssets([]);
+      return;
+    }
+
+    try {
+      const mediaList = await apiRequest<MediaAsset[]>(`/accounts/${accountId}/media-assets`);
+      setMediaAssets(mediaList);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not load media.");
+    }
+  }, []);
 
   useEffect(() => {
     void loadHealth();
@@ -296,6 +395,12 @@ function App() {
       })
       .catch(() => setPersonaForm(emptyPersonaForm));
   }, [isAuthenticated, selectedAccountId]);
+
+  useEffect(() => {
+    if (isAuthenticated && selectedAccountId) {
+      void loadMedia(selectedAccountId);
+    }
+  }, [isAuthenticated, loadMedia, selectedAccountId]);
 
   function updateApiBaseUrl(value: string) {
     setApiBaseUrlState(value);
@@ -332,6 +437,9 @@ function App() {
     try {
       await action();
       await loadData();
+      if (selectedAccountId) {
+        await loadMedia(selectedAccountId);
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Request failed.");
     } finally {
@@ -346,6 +454,9 @@ function App() {
     setDrafts([]);
     setPublishTasks([]);
     setRiskLogs([]);
+    setMediaAssets([]);
+    setPublishLogs([]);
+    setAnalyticsRecords([]);
     setSelectedAccountId("");
   }
 
@@ -411,7 +522,9 @@ function App() {
         {activePage === "Dashboard" ? (
           <Dashboard
             accounts={accounts}
+            analyticsRecords={analyticsRecords}
             drafts={drafts}
+            mediaAssets={mediaAssets}
             publishTasks={publishTasks}
             riskLogs={riskLogs}
           />
@@ -454,6 +567,32 @@ function App() {
             }
           />
         ) : null}
+        {activePage === "Media" ? (
+          <MediaPage
+            accounts={accounts}
+            form={mediaForm}
+            isBusy={isBusy}
+            mediaAssets={mediaAssets}
+            selectedAccountId={selectedAccountId}
+            onChange={setMediaForm}
+            onSelect={setSelectedAccountId}
+            onSubmit={() =>
+              runMutation(async () => {
+                await apiRequest<MediaAsset>("/media-assets", {
+                  body: JSON.stringify({
+                    account_id: selectedAccountId,
+                    filename: mediaForm.filename,
+                    content_type: mediaForm.content_type,
+                    preview_url: mediaForm.preview_url || null,
+                    sha256: mediaForm.sha256 || null
+                  }),
+                  method: "POST"
+                });
+                setMediaForm({ filename: "", content_type: "image/png", preview_url: "", sha256: "" });
+              })
+            }
+          />
+        ) : null}
         {activePage === "Drafts" ? (
           <DraftsPage
             accounts={accounts}
@@ -462,6 +601,12 @@ function App() {
             isBusy={isBusy}
             selectedAccountId={selectedAccountId}
             onChange={setDraftForm}
+            onCopy={(value) =>
+              runMutation(async () => {
+                await copyText(value);
+              })
+            }
+            onOpenCreator={() => window.open(CREATOR_URL, "_blank", "noopener,noreferrer")}
             onReview={(draftId, reviewStatus) =>
               runMutation(async () => {
                 await apiRequest<Draft>(`/drafts/${draftId}/review`, {
@@ -526,6 +671,67 @@ function App() {
           />
         ) : null}
         {activePage === "Compliance" ? <CompliancePage riskLogs={riskLogs} /> : null}
+        {activePage === "Publish Records" ? (
+          <PublishRecordsPage
+            accounts={accounts}
+            analyticsForm={analyticsForm}
+            analyticsRecords={analyticsRecords}
+            drafts={drafts}
+            isBusy={isBusy}
+            publishForm={publishForm}
+            publishLogs={publishLogs}
+            selectedAccountId={selectedAccountId}
+            onAnalyticsChange={setAnalyticsForm}
+            onAnalyticsSubmit={() =>
+              runMutation(async () => {
+                const publishLog = publishLogs.find((item) => item.id === analyticsForm.publish_log_id);
+                if (!publishLog) {
+                  throw new Error("Choose a publish record before adding analytics.");
+                }
+                await apiRequest<AnalyticsRecord>("/analytics-records", {
+                  body: JSON.stringify({
+                    account_id: publishLog.account_id,
+                    publish_log_id: publishLog.id,
+                    views: Number(analyticsForm.views),
+                    likes: Number(analyticsForm.likes),
+                    favorites: Number(analyticsForm.favorites),
+                    comments: Number(analyticsForm.comments),
+                    recorded_at: new Date(analyticsForm.recorded_at).toISOString()
+                  }),
+                  method: "POST"
+                });
+                setAnalyticsForm({
+                  publish_log_id: "",
+                  views: "0",
+                  likes: "0",
+                  favorites: "0",
+                  comments: "0",
+                  recorded_at: ""
+                });
+              })
+            }
+            onPublishChange={setPublishForm}
+            onPublishSubmit={() =>
+              runMutation(async () => {
+                const draft = drafts.find((item) => item.id === publishForm.draft_id);
+                if (!draft) {
+                  throw new Error("Choose a draft before recording publish result.");
+                }
+                await apiRequest<PublishLog>("/publish-logs", {
+                  body: JSON.stringify({
+                    account_id: draft.account_id,
+                    draft_id: draft.id,
+                    published_at: new Date(publishForm.published_at).toISOString(),
+                    note_url: publishForm.note_url
+                  }),
+                  method: "POST"
+                });
+                setPublishForm({ draft_id: "", published_at: "", note_url: "" });
+              })
+            }
+            onSelect={setSelectedAccountId}
+          />
+        ) : null}
         {activePage === "Settings" ? (
           <SettingsPage
             apiBaseUrl={apiBaseUrl}
@@ -544,12 +750,16 @@ function App() {
 
 function Dashboard({
   accounts,
+  analyticsRecords,
   drafts,
+  mediaAssets,
   publishTasks,
   riskLogs
 }: {
   accounts: Account[];
+  analyticsRecords: AnalyticsRecord[];
   drafts: Draft[];
+  mediaAssets: MediaAsset[];
   publishTasks: PublishTask[];
   riskLogs: RiskLog[];
 }) {
@@ -559,6 +769,8 @@ function Dashboard({
       <Metric label="Accounts" tone="green" value={String(accounts.length)} />
       <Metric label="Drafts pending review" tone="amber" value={String(pendingDrafts)} />
       <Metric label="Scheduled tasks" tone="blue" value={String(publishTasks.length)} />
+      <Metric label="Media assets" tone="blue" value={String(mediaAssets.length)} />
+      <Metric label="Publish records" tone="green" value={String(analyticsRecords.length)} />
       <article className="panel wide">
         <div>
           <h2>Operational Readiness</h2>
@@ -714,6 +926,105 @@ function PersonasPage({
   );
 }
 
+function MediaPage({
+  accounts,
+  form,
+  isBusy,
+  mediaAssets,
+  selectedAccountId,
+  onChange,
+  onSelect,
+  onSubmit
+}: {
+  accounts: Account[];
+  form: { filename: string; content_type: string; preview_url: string; sha256: string };
+  isBusy: boolean;
+  mediaAssets: MediaAsset[];
+  selectedAccountId: string;
+  onChange: (value: { filename: string; content_type: string; preview_url: string; sha256: string }) => void;
+  onSelect: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <section className="page-grid">
+      <Panel title="Add Media Metadata">
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
+          <label>
+            Filename
+            <input
+              value={form.filename}
+              onChange={(event) => onChange({ ...form, filename: event.target.value })}
+              placeholder="cover.png"
+            />
+          </label>
+          <label>
+            Content type
+            <input
+              value={form.content_type}
+              onChange={(event) => onChange({ ...form, content_type: event.target.value })}
+              placeholder="image/png"
+            />
+          </label>
+          <label>
+            Preview URL
+            <input
+              value={form.preview_url}
+              onChange={(event) => onChange({ ...form, preview_url: event.target.value })}
+              placeholder="https://example.com/cover.png"
+            />
+          </label>
+          <label>
+            SHA256
+            <input
+              value={form.sha256}
+              onChange={(event) => onChange({ ...form, sha256: event.target.value })}
+              placeholder="Optional 64-character checksum"
+            />
+          </label>
+          <button className="primary-button" disabled={isBusy || !selectedAccountId || !form.filename} type="submit">
+            Save media
+          </button>
+        </form>
+      </Panel>
+      <Panel title="Media Library">
+        <div className="media-grid">
+          {mediaAssets.length ? (
+            mediaAssets.map((asset) => (
+              <article className="media-card" key={asset.id}>
+                <div className="media-preview">
+                  {asset.content_type.startsWith("image/") && asset.preview_url ? (
+                    <img alt={asset.filename} src={asset.preview_url} />
+                  ) : (
+                    <span>{asset.content_type}</span>
+                  )}
+                </div>
+                <div>
+                  <h3>{asset.filename}</h3>
+                  <p>{asset.storage_key}</p>
+                  {asset.reused_from_asset_id ? (
+                    <span className="badge amber">Reuse warning</span>
+                  ) : (
+                    <span className="badge green">Scoped</span>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">No media metadata yet.</div>
+          )}
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
 function DraftsPage({
   accounts,
   drafts,
@@ -721,6 +1032,8 @@ function DraftsPage({
   isBusy,
   selectedAccountId,
   onChange,
+  onCopy,
+  onOpenCreator,
   onReview,
   onSelect,
   onSubmitAi,
@@ -732,6 +1045,8 @@ function DraftsPage({
   isBusy: boolean;
   selectedAccountId: string;
   onChange: (value: { title: string; body: string; tags: string; cover_text: string; topic: string }) => void;
+  onCopy: (value: string) => void;
+  onOpenCreator: () => void;
   onReview: (draftId: string, reviewStatus: string) => void;
   onSelect: (value: string) => void;
   onSubmitAi: () => void;
@@ -808,11 +1123,26 @@ function DraftsPage({
                 </div>
                 <div className="record-actions">
                   <span className={`badge ${badgeTone(draft.review_status)}`}>{draft.review_status}</span>
+                  <button className="quiet-button" onClick={() => onCopy(draft.title)} type="button">
+                    Copy title
+                  </button>
+                  <button className="quiet-button" onClick={() => onCopy(draft.body)} type="button">
+                    Copy body
+                  </button>
+                  <button className="quiet-button" onClick={() => onCopy(draft.tags.join(", "))} type="button">
+                    Copy tags
+                  </button>
+                  <button className="quiet-button" onClick={() => onCopy(draft.cover_text)} type="button">
+                    Copy cover
+                  </button>
                   <button className="quiet-button" onClick={() => onReview(draft.id, "approved")} type="button">
                     Approve
                   </button>
                   <button className="quiet-button" onClick={() => onReview(draft.id, "rejected")} type="button">
                     Reject
+                  </button>
+                  <button className="secondary-button" onClick={onOpenCreator} type="button">
+                    Open creator
                   </button>
                 </div>
               </article>
@@ -921,6 +1251,230 @@ function CompliancePage({ riskLogs }: { riskLogs: RiskLog[] }) {
         )}
       </div>
     </Panel>
+  );
+}
+
+function PublishRecordsPage({
+  accounts,
+  analyticsForm,
+  analyticsRecords,
+  drafts,
+  isBusy,
+  publishForm,
+  publishLogs,
+  selectedAccountId,
+  onAnalyticsChange,
+  onAnalyticsSubmit,
+  onPublishChange,
+  onPublishSubmit,
+  onSelect
+}: {
+  accounts: Account[];
+  analyticsForm: {
+    publish_log_id: string;
+    views: string;
+    likes: string;
+    favorites: string;
+    comments: string;
+    recorded_at: string;
+  };
+  analyticsRecords: AnalyticsRecord[];
+  drafts: Draft[];
+  isBusy: boolean;
+  publishForm: { draft_id: string; published_at: string; note_url: string };
+  publishLogs: PublishLog[];
+  selectedAccountId: string;
+  onAnalyticsChange: (value: {
+    publish_log_id: string;
+    views: string;
+    likes: string;
+    favorites: string;
+    comments: string;
+    recorded_at: string;
+  }) => void;
+  onAnalyticsSubmit: () => void;
+  onPublishChange: (value: { draft_id: string; published_at: string; note_url: string }) => void;
+  onPublishSubmit: () => void;
+  onSelect: (value: string) => void;
+}) {
+  const accountMap = new Map(accounts.map((account) => [account.account_id, account.display_name]));
+  const selectedDrafts = drafts.filter((draft) => !selectedAccountId || draft.account_id === selectedAccountId);
+
+  return (
+    <section className="page-grid">
+      <Panel title="Manual Publish Result">
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onPublishSubmit();
+          }}
+        >
+          <AccountSelect accounts={accounts} selectedAccountId={selectedAccountId} onSelect={onSelect} />
+          <label>
+            Draft
+            <select
+              value={publishForm.draft_id}
+              onChange={(event) => onPublishChange({ ...publishForm, draft_id: event.target.value })}
+            >
+              <option value="">Choose draft</option>
+              {selectedDrafts.map((draft) => (
+                <option key={draft.id} value={draft.id}>
+                  {draft.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Published time
+            <input
+              type="datetime-local"
+              value={publishForm.published_at}
+              onChange={(event) => onPublishChange({ ...publishForm, published_at: event.target.value })}
+            />
+          </label>
+          <label>
+            Note URL
+            <input
+              value={publishForm.note_url}
+              onChange={(event) => onPublishChange({ ...publishForm, note_url: event.target.value })}
+              placeholder="https://www.xiaohongshu.com/explore/..."
+            />
+          </label>
+          <button
+            className="primary-button"
+            disabled={isBusy || !publishForm.draft_id || !publishForm.published_at}
+            type="submit"
+          >
+            Save publish record
+          </button>
+        </form>
+      </Panel>
+      <Panel title="Analytics Entry">
+        <form
+          className="form-grid two-column"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onAnalyticsSubmit();
+          }}
+        >
+          <label>
+            Publish record
+            <select
+              value={analyticsForm.publish_log_id}
+              onChange={(event) =>
+                onAnalyticsChange({ ...analyticsForm, publish_log_id: event.target.value })
+              }
+            >
+              <option value="">Choose record</option>
+              {publishLogs.map((log) => (
+                <option key={log.id} value={log.id}>
+                  {accountMap.get(log.account_id) || log.account_id} / {formatDate(log.published_at)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Recorded time
+            <input
+              type="datetime-local"
+              value={analyticsForm.recorded_at}
+              onChange={(event) => onAnalyticsChange({ ...analyticsForm, recorded_at: event.target.value })}
+            />
+          </label>
+          <NumberField form={analyticsForm} label="Views" name="views" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="Likes" name="likes" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="Favorites" name="favorites" onChange={onAnalyticsChange} />
+          <NumberField form={analyticsForm} label="Comments" name="comments" onChange={onAnalyticsChange} />
+          <button
+            className="primary-button"
+            disabled={isBusy || !analyticsForm.publish_log_id || !analyticsForm.recorded_at}
+            type="submit"
+          >
+            Save analytics
+          </button>
+        </form>
+      </Panel>
+      <Panel title="Publish Records">
+        <div className="record-stack">
+          {publishLogs.length ? (
+            publishLogs.map((log) => (
+              <article className="record-card compact" key={log.id}>
+                <div>
+                  <h3>{accountMap.get(log.account_id) || log.account_id}</h3>
+                  <p>{formatDate(log.published_at)}</p>
+                  {log.note_url ? (
+                    <a href={log.note_url} rel="noreferrer" target="_blank">
+                      Open note
+                    </a>
+                  ) : null}
+                </div>
+                <span className="badge green">manual</span>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">No publish records yet.</div>
+          )}
+        </div>
+      </Panel>
+      <Panel title="Analytics Records">
+        <div className="record-stack">
+          {analyticsRecords.length ? (
+            analyticsRecords.map((record) => (
+              <article className="record-card compact" key={record.id}>
+                <div>
+                  <h3>{record.views.toLocaleString()} views</h3>
+                  <p>
+                    {record.likes} likes / {record.favorites} favorites / {record.comments} comments
+                  </p>
+                </div>
+                <span className="badge blue">{formatDate(record.recorded_at)}</span>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">No analytics records yet.</div>
+          )}
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
+function NumberField({
+  form,
+  label,
+  name,
+  onChange
+}: {
+  form: {
+    publish_log_id: string;
+    views: string;
+    likes: string;
+    favorites: string;
+    comments: string;
+    recorded_at: string;
+  };
+  label: string;
+  name: "views" | "likes" | "favorites" | "comments";
+  onChange: (value: {
+    publish_log_id: string;
+    views: string;
+    likes: string;
+    favorites: string;
+    comments: string;
+    recorded_at: string;
+  }) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <input
+        min="0"
+        type="number"
+        value={form[name]}
+        onChange={(event) => onChange({ ...form, [name]: event.target.value })}
+      />
+    </label>
   );
 }
 

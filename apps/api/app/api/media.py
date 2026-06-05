@@ -37,6 +37,7 @@ def create_media_asset(
         filename=safe_filename,
         content_type=request.content_type,
         storage_key="pending",
+        preview_url=request.preview_url,
         sha256=request.sha256,
         reused_from_asset_id=existing_asset.id if existing_asset else None,
     )

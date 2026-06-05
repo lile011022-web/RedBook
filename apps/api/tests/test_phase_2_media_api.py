@@ -36,6 +36,7 @@ def test_operator_can_create_and_list_account_scoped_media_metadata():
             "account_id": account_id,
             "filename": "../cover.png",
             "content_type": "image/png",
+            "preview_url": "https://example.com/cover.png",
             "sha256": "a" * 64,
         },
     )
@@ -43,6 +44,7 @@ def test_operator_can_create_and_list_account_scoped_media_metadata():
     assert created.status_code == 201
     assert created.json()["account_id"] == account_id
     assert created.json()["filename"] == "cover.png"
+    assert created.json()["preview_url"] == "https://example.com/cover.png"
     assert created.json()["storage_key"].startswith(f"accounts/{account_id}/media/")
     assert created.json()["storage_key"].endswith("/cover.png")
 

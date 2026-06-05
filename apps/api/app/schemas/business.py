@@ -86,6 +86,7 @@ class MediaAssetCreate(BaseModel):
     account_id: str
     filename: str = Field(min_length=1, max_length=255)
     content_type: str = "application/octet-stream"
+    preview_url: str | None = None
     sha256: str | None = Field(default=None, min_length=64, max_length=64)
 
 
@@ -95,6 +96,7 @@ class MediaAssetResponse(BaseModel):
     filename: str
     content_type: str
     storage_key: str
+    preview_url: str | None
     sha256: str | None
     reused_from_asset_id: str | None
     created_at: datetime
