@@ -440,6 +440,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getToken()));
   const [apiBaseUrl, setApiBaseUrlState] = useState(getApiBaseUrl());
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -591,12 +592,15 @@ function App() {
   }, [isAuthenticated, loadMedia, selectedAccountId]);
 
   function updateApiBaseUrl(value: string) {
+    setError("");
+    setSuccessMessage("");
     setApiBaseUrlState(value);
     setApiBaseUrl(value);
   }
 
   async function handleAuth(mode: "login" | "register", email: string, password: string, rememberLogin: boolean) {
     setError("");
+    setSuccessMessage("");
     setIsBusy(true);
     try {
       const healthResponse = await apiRequest<HealthResponse>("/health");
@@ -628,6 +632,7 @@ function App() {
       }
       setIsAuthenticated(true);
       await loadData();
+      setSuccessMessage(mode === "register" ? "账号已创建并登录。" : "已登录。");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "登录或注册失败。");
     } finally {
@@ -635,8 +640,9 @@ function App() {
     }
   }
 
-  async function runMutation(action: () => Promise<void>) {
+  async function runMutation(action: () => Promise<void>, successText = "操作成功。") {
     setError("");
+    setSuccessMessage("");
     setIsBusy(true);
     try {
       await action();
@@ -644,7 +650,9 @@ function App() {
       if (selectedAccountId) {
         await loadMedia(selectedAccountId);
       }
+      setSuccessMessage(successText);
     } catch (requestError) {
+      setSuccessMessage("");
       setError(requestError instanceof Error ? requestError.message : "请求失败。");
     } finally {
       setIsBusy(false);
@@ -653,12 +661,14 @@ function App() {
 
   async function openAccountWorkbench(account: Account) {
     setError("");
+    setSuccessMessage("");
     if (!window.redbook?.openXhsWorkbench) {
       setError("当前环境不支持小红书独立窗口，请使用桌面版。");
       return;
     }
     try {
       await window.redbook.openXhsWorkbench(account.account_id, account.display_name);
+      setSuccessMessage("已打开小红书工作台窗口。");
     } catch (workbenchError) {
       setError(workbenchError instanceof Error ? workbenchError.message : "无法打开小红书工作台。");
     }
@@ -666,6 +676,7 @@ function App() {
 
   async function clearAccountWorkbenchSession(account: Account) {
     setError("");
+    setSuccessMessage("");
     if (!window.redbook?.clearXhsSession) {
       setError("当前环境不支持清除小红书登录状态，请使用桌面版。");
       return;
@@ -676,7 +687,7 @@ function App() {
     }
     try {
       await window.redbook.clearXhsSession(account.account_id);
-      setError("已清除该账号的小红书登录状态。");
+      setSuccessMessage("已清除该账号的小红书登录状态。");
     } catch (clearError) {
       setError(clearError instanceof Error ? clearError.message : "无法清除该账号的小红书登录状态。");
     }
@@ -694,7 +705,15 @@ function App() {
     setAnalyticsRecords([]);
     setDashboardRecords([]);
     setDashboardAnalysis(null);
+    setSuccessMessage("");
+    setError("");
     setSelectedAccountId("");
+  }
+
+  function selectAccount(accountId: string) {
+    setError("");
+    setSuccessMessage("");
+    setSelectedAccountId(accountId);
   }
 
   if (!isAuthenticated) {
@@ -727,6 +746,7 @@ function App() {
               key={item}
               onClick={() => {
                 setError("");
+                setSuccessMessage("");
                 setActivePage(item);
               }}
               type="button"
@@ -757,6 +777,7 @@ function App() {
         </header>
 
         {error ? <div className="alert">{error}</div> : null}
+        {successMessage ? <div className="success-alert">{successMessage}</div> : null}
 
         {activePage === "仪表盘" ? (
           <Dashboard
@@ -774,6 +795,7 @@ function App() {
             isBusy={isBusy}
             onAccountNameChange={(value) => {
               setError("");
+              setSuccessMessage("");
               setAccountName(value);
             }}
             onClearXhsSession={clearAccountWorkbenchSession}
@@ -784,7 +806,7 @@ function App() {
                   method: "POST"
                 });
                 setAccountName("");
-              })
+              }, "账号已创建。")
             }
             onOpenXhsWorkbench={openAccountWorkbench}
           />
@@ -796,7 +818,7 @@ function App() {
             isBusy={isBusy}
             selectedAccountId={selectedAccountId}
             onChange={setPersonaForm}
-            onSelect={setSelectedAccountId}
+            onSelect={selectAccount}
             onSubmit={() =>
               runMutation(async () => {
                 await apiRequest<Persona>(`/accounts/${selectedAccountId}/persona`, {
@@ -806,7 +828,7 @@ function App() {
                   }),
                   method: "PUT"
                 });
-              })
+              }, "人设已保存。")
             }
           />
         ) : null}
@@ -832,7 +854,7 @@ function App() {
                   method: "POST"
                 });
                 setMediaIdeas(ideas);
-              })
+              }, "素材创意已生成。")
             }
             onGenerateImage={() =>
               runMutation(async () => {
@@ -847,9 +869,9 @@ function App() {
                   method: "POST"
                 });
                 setMediaForm((current) => ({ ...current, ai_prompt: "", ai_style: "" }));
-              })
+              }, "AI 图片已生成并保存到当前账号素材库。")
             }
-            onSelect={setSelectedAccountId}
+            onSelect={selectAccount}
             onUpload={() =>
               runMutation(async () => {
                 if (!selectedAccountId || !selectedMediaFile) {
@@ -862,7 +884,7 @@ function App() {
                   method: "POST"
                 });
                 setSelectedMediaFile(null);
-              })
+              }, "素材已上传到当前账号素材库。")
             }
           />
         ) : null}
@@ -878,18 +900,23 @@ function App() {
             onCopy={(value) =>
               runMutation(async () => {
                 await copyText(value);
-              })
+              }, "已复制到剪贴板。")
             }
-            onOpenCreator={() => window.open(CREATOR_URL, "_blank", "noopener,noreferrer")}
+            onOpenCreator={() => {
+              setError("");
+              setSuccessMessage("");
+              window.open(CREATOR_URL, "_blank", "noopener,noreferrer");
+              setSuccessMessage("已打开小红书创作者中心。");
+            }}
             onReview={(draftId, reviewStatus) =>
               runMutation(async () => {
                 await apiRequest<Draft>(`/drafts/${draftId}/review`, {
                   body: JSON.stringify({ review_status: reviewStatus }),
                   method: "PATCH"
                 });
-              })
+              }, reviewStatus === "approved" ? "草稿已通过。" : "草稿已拒绝。")
             }
-            onSelect={setSelectedAccountId}
+            onSelect={selectAccount}
             onSubmitAi={() =>
               runMutation(async () => {
                 if (!selectedAccountHasPersona) {
@@ -904,7 +931,7 @@ function App() {
                   }),
                   method: "POST"
                 });
-              })
+              }, "文案已生成并加入草稿审核列表。")
             }
           />
         ) : null}
@@ -931,7 +958,7 @@ function App() {
                   method: "POST"
                 });
                 setScheduleForm({ draft_id: "", scheduled_at: "" });
-              })
+              }, "排期已保存。")
             }
           />
         ) : null}
@@ -969,7 +996,7 @@ function App() {
                   method: "POST"
                 });
                 setAnalyticsForm(emptyAnalyticsForm);
-              })
+              }, "单篇数据已保存。")
             }
             onAnalyzeDashboard={() =>
               runMutation(async () => {
@@ -990,7 +1017,7 @@ function App() {
                   method: "POST"
                 });
                 setDashboardAnalysis(analysis);
-              })
+              }, "AI 运营建议已生成。")
             }
             onDashboardChange={setDashboardForm}
             onDashboardSubmit={() =>
@@ -1029,7 +1056,7 @@ function App() {
                   method: "POST"
                 });
                 setDashboardForm(emptyDashboardForm);
-              })
+              }, "创作中心总览数据已保存。")
             }
             onPublishChange={setPublishForm}
             onPublishSubmit={() =>
@@ -1048,9 +1075,9 @@ function App() {
                   method: "POST"
                 });
                 setPublishForm({ draft_id: "", published_at: "", note_url: "" });
-              })
+              }, "发布记录已保存。")
             }
-            onSelect={setSelectedAccountId}
+            onSelect={selectAccount}
           />
         ) : null}
         {activePage === "设置" ? (
@@ -1058,9 +1085,18 @@ function App() {
             apiBaseUrl={apiBaseUrl}
             health={health}
             onApiBaseUrlChange={updateApiBaseUrl}
-            onRefresh={() => {
-              void loadHealth();
-              void loadData();
+            onRefresh={async () => {
+              setError("");
+              setSuccessMessage("");
+              setIsBusy(true);
+              try {
+                await Promise.all([loadHealth(), loadData()]);
+                setSuccessMessage("后端状态已刷新。");
+              } catch (requestError) {
+                setError(requestError instanceof Error ? requestError.message : "刷新后端状态失败。");
+              } finally {
+                setIsBusy(false);
+              }
             }}
           />
         ) : null}

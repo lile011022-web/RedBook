@@ -413,6 +413,15 @@ a {
   font-weight: 700;
 }
 
+.success-alert {
+  border: 1px solid rgba(36, 138, 61, 0.16);
+  border-radius: 16px;
+  background: #ecfff1;
+  color: #0b6b2b;
+  padding: 13px 15px;
+  font-weight: 700;
+}
+
 .compact-alert {
   padding: 10px 12px;
   font-size: 13px;
